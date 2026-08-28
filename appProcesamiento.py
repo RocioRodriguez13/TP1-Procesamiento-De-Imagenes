@@ -312,27 +312,27 @@ class AppProcesamiento(tk.Tk):
         if tipo == "media":
             tam = simpledialog.askinteger("Filtro Media", "Tamaño (impar):", minvalue=3, initialvalue=3)
             if tam:
-                res = procesamiento.aplicar_filtro_media(self.imagen_original, tam)
+                res = procesamiento.aplicar_filtro_media_rgb(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Media ({tam}x{tam})", res)
 
         elif tipo == "mediana":
             tam = simpledialog.askinteger("Filtro Mediana", "Tamaño (impar):", minvalue=3, initialvalue=3)
             if tam:
-                res = procesamiento.aplicar_filtro_mediana(self.imagen_original, tam)
+                res = procesamiento.aplicar_filtro_mediana_rgb(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Mediana ({tam}x{tam})", res)
 
         elif tipo == "mediana_p":
-            res = procesamiento.aplicar_mediana_ponderada_3x3(self.imagen_original)
+            res = procesamiento.aplicar_mediana_ponderada_3x3_rgb(self.imagen_original)
             VentanaResultado(self, "Mediana Ponderada (3x3)", res)
 
         elif tipo == "gauss":
             sigma = simpledialog.askfloat("Filtro Gaussiano", "Valor σ:", minvalue=0.1, initialvalue=1.0)
             if sigma:
-                res = procesamiento.aplicar_filtro_gaussiano(self.imagen_original, sigma)
+                res = procesamiento.aplicar_filtro_gaussiano_rgb(self.imagen_original, sigma)
                 VentanaResultado(self, f"Filtro Gauss (σ={sigma})", res)
 
         elif tipo == "realce":
-            res = procesamiento.aplicar_realce_bordes(self.imagen_original)
+            res = procesamiento.aplicar_realce_bordes_rgb(self.imagen_original)
             VentanaResultado(self, "Realce de Bordes", res)
 
     def calcular_info_region(self):
