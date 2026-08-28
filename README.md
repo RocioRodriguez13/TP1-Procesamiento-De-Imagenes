@@ -43,7 +43,7 @@ TP1-Procesamiento-De-Imagenes/
 
 ## Requisitos e Instalación
 
-2. Instalar las dependencias necesarias:
+Instalar las dependencias necesarias:
    ```bash
    pip install pillow matplotlib
    ```
