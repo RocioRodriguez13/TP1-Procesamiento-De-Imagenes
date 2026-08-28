@@ -1,9 +1,9 @@
 # TP1: Operadores Puntuales y Operadores en el Dominio Espacial
 
-**Materia:** Procesamiento de Imágenes y Visión por Computadora  
-**Universidad:** Universidad Nacional de Hurlingham  
-**Profesora:** Dra. Juliana Gambini  
-**Estudiantes:** Ernestina Campos Llanos, Rocio Rodriguez
+*Materia:* Procesamiento de Imágenes y Visión por Computadora  
+*Universidad:* Universidad Nacional de Hurlingham  
+*Profesora:* Dra. Juliana Gambini  
+*Estudiantes:* Ernestina Campos Llanos, Rocio Rodriguez
 ---
 
 ## Descripción del Trabajo Práctico
