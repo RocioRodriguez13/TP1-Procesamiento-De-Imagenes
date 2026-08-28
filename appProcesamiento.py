@@ -25,8 +25,31 @@ class AppProcesamiento(tk.Tk):
         self.end_x = None
         self.end_y = None
 
-        self.panel_botones = ttk.Frame(self, padding=10)
-        self.panel_botones.pack(side="left", fill="y")
+        # Contenedor con scroll para el panel de botones
+        self.panel_container = ttk.Frame(self)
+        self.panel_container.pack(side="left", fill="y")
+
+        self.panel_canvas = tk.Canvas(self.panel_container, width=230, highlightthickness=0)
+        self.panel_scrollbar = ttk.Scrollbar(self.panel_container, orient="vertical", command=self.panel_canvas.yview)
+        self.panel_botones = ttk.Frame(self.panel_canvas, padding=10)
+
+        self.panel_botones.bind(
+            "<Configure>",
+            lambda e: self.panel_canvas.configure(scrollregion=self.panel_canvas.bbox("all"))
+        )
+
+        self.panel_canvas.create_window((0, 0), window=self.panel_botones, anchor="nw")
+        self.panel_canvas.configure(yscrollcommand=self.panel_scrollbar.set)
+
+        self.panel_canvas.pack(side="left", fill="y")
+        self.panel_scrollbar.pack(side="left", fill="y")
+
+        # Scroll con la rueda del mouse cuando el cursor está sobre el panel
+        self.panel_canvas.bind(
+            "<Enter>",
+            lambda e: self.panel_canvas.bind_all("<MouseWheel>", lambda ev: self.panel_canvas.yview_scroll(int(-1 * (ev.delta / 120)), "units"))
+        )
+        self.panel_canvas.bind("<Leave>", lambda e: self.panel_canvas.unbind_all("<MouseWheel>"))
 
         ttk.Label(self.panel_botones, text="Controles de Procesamiento", font=("Arial", 11, "bold")).pack(pady=(0, 10))
 
@@ -312,27 +335,27 @@ class AppProcesamiento(tk.Tk):
         if tipo == "media":
             tam = simpledialog.askinteger("Filtro Media", "Tamaño (impar):", minvalue=3, initialvalue=3)
             if tam:
-                res = procesamiento.aplicar_filtro_media_rgb(self.imagen_original, tam)
+                res = procesamiento.aplicar_filtro_media(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Media ({tam}x{tam})", res)
 
         elif tipo == "mediana":
             tam = simpledialog.askinteger("Filtro Mediana", "Tamaño (impar):", minvalue=3, initialvalue=3)
             if tam:
-                res = procesamiento.aplicar_filtro_mediana_rgb(self.imagen_original, tam)
+                res = procesamiento.aplicar_filtro_mediana(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Mediana ({tam}x{tam})", res)
 
         elif tipo == "mediana_p":
-            res = procesamiento.aplicar_mediana_ponderada_3x3_rgb(self.imagen_original)
+            res = procesamiento.aplicar_mediana_ponderada_3x3(self.imagen_original)
             VentanaResultado(self, "Mediana Ponderada (3x3)", res)
 
         elif tipo == "gauss":
             sigma = simpledialog.askfloat("Filtro Gaussiano", "Valor σ:", minvalue=0.1, initialvalue=1.0)
             if sigma:
-                res = procesamiento.aplicar_filtro_gaussiano_rgb(self.imagen_original, sigma)
+                res = procesamiento.aplicar_filtro_gaussiano(self.imagen_original, sigma)
                 VentanaResultado(self, f"Filtro Gauss (σ={sigma})", res)
 
         elif tipo == "realce":
-            res = procesamiento.aplicar_realce_bordes_rgb(self.imagen_original)
+            res = procesamiento.aplicar_realce_bordes(self.imagen_original)
             VentanaResultado(self, "Realce de Bordes", res)
 
     def calcular_info_region(self):
