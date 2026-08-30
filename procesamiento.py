@@ -95,20 +95,17 @@ def contaminar_exponencial(img_pil, porcentaje, lambd):
 
     return resultado
 
-def generar_ruido_sal_pimienta(img_pil, densidad):
+def generar_ruido_sal_pimienta(img_pil, p):
     ancho, alto = img_pil.size
     resultado = img_pil.copy()
-    total_pixeles = ancho * alto
-    cantidad_a_contaminar = int(total_pixeles * densidad / 100)
 
-    coordenadas = [(x, y) for x in range(ancho) for y in range(alto)]
-    elegidas = random.sample(coordenadas, cantidad_a_contaminar)
-
-    for (x, y) in elegidas:
-        if random.random() < 0.5:
-            resultado.putpixel((x, y), (255, 255, 255))
-        else:
-            resultado.putpixel((x, y), (0, 0, 0))
+    for y in range(alto):
+        for x in range(ancho):
+            valor = random.random()
+            if valor <= p:
+                resultado.putpixel((x, y), (0, 0, 0))
+            elif valor > 1 - p:
+                resultado.putpixel((x, y), (255, 255, 255))
 
     return resultado
 
@@ -232,15 +229,23 @@ def aplicar_filtro_gaussiano(img_pil, sigma=1.0):
     return resultado
 
 
-def aplicar_realce_bordes(img_pil):
+def aplicar_realce_bordes(img_pil, tamano_mascara=3):
     img_pil = img_pil.convert("RGB")
     ancho, alto = img_pil.size
-    radio_mascara = 1
+    radio_mascara = tamano_mascara // 2
     resultado = Image.new("RGB", (ancho, alto))
 
-    mascara = [-1/9, -1/9, -1/9,
-               -1/9,  8/9, -1/9,
-               -1/9, -1/9, -1/9]
+    cantidad_celdas = tamano_mascara * tamano_mascara
+    peso_centro = (cantidad_celdas - 1) / cantidad_celdas
+    peso_resto = -1 / cantidad_celdas
+
+    mascara = []
+    for dy in range(-radio_mascara, radio_mascara + 1):
+        for dx in range(-radio_mascara, radio_mascara + 1):
+            if dx == 0 and dy == 0:
+                mascara.append(peso_centro)
+            else:
+                mascara.append(peso_resto)
 
     for y in range(alto):
         for x in range(ancho):

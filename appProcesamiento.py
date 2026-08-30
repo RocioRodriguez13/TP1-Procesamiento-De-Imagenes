@@ -57,7 +57,7 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Guardar Imagen", command=self.guardar_imagen).pack(fill="x", pady=2)
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
 
-        ttk.Button(self.panel_botones, text="Modificar Píxel (0,0)", command=self.modificar_pixel_ejemplo).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Modificar Píxel", command=self.modificar_pixel).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Copiar Región", command=self.copiar_region_seleccionada).pack(fill="x", pady=2)
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
 
@@ -124,18 +124,25 @@ class AppProcesamiento(tk.Tk):
                 bytes_data = f.read()
 
             total_bytes = len(bytes_data)
-            lado = int(math.sqrt(total_bytes))
 
-            if lado * lado != total_bytes:
+            es_color = messagebox.askyesno("Imagen RAW", "¿La imagen es a color (RGB)?\nSi es 'No', se asume escala de grises.")
+            bytes_por_pixel = 3 if es_color else 1
+
+            total_pixeles = total_bytes // bytes_por_pixel
+            lado = int(math.sqrt(total_pixeles))
+
+            if lado * lado != total_pixeles:
                 ancho = simpledialog.askinteger("Imagen RAW", f"El archivo pesa {total_bytes} bytes.\nIngrese ANCHO:", initialvalue=lado)
                 if not ancho:
                     return None
-                alto = total_bytes // ancho
+                alto = total_pixeles // ancho
             else:
                 ancho = lado
                 alto = lado
 
-            return Image.frombytes("L", (ancho, alto), bytes_data[:ancho * alto]).convert("RGB")
+            modo = "RGB" if es_color else "L"
+            cantidad_bytes_necesaria = ancho * alto * bytes_por_pixel
+            return Image.frombytes(modo, (ancho, alto), bytes_data[:cantidad_bytes_necesaria]).convert("RGB")
         except Exception as e:
             messagebox.showerror("Error RAW", f"No se pudo cargar el archivo RAW:\n{e}")
             return None
@@ -150,14 +157,34 @@ class AppProcesamiento(tk.Tk):
             self.imagen_original.save(ruta)
             messagebox.showinfo("Éxito", "Imagen guardada.")
 
-    def modificar_pixel_ejemplo(self):
+    def modificar_pixel(self):
         if self.imagen_original is None:
             messagebox.showwarning("Atención", "Primero cargá una imagen.")
             return
-        p_val = self.imagen_original.getpixel((0, 0))
-        self.imagen_original.putpixel((0, 0), (255, 0, 0))
+
+        ancho, alto = self.imagen_original.size
+        x = simpledialog.askinteger("Modificar Píxel", f"Coordenada X (0-{ancho-1}):", minvalue=0, maxvalue=ancho-1)
+        if x is None:
+            return
+        y = simpledialog.askinteger("Modificar Píxel", f"Coordenada Y (0-{alto-1}):", minvalue=0, maxvalue=alto-1)
+        if y is None:
+            return
+
+        p_val = self.imagen_original.getpixel((x, y))
+
+        r = simpledialog.askinteger("Nuevo valor", "Componente R (0-255):", minvalue=0, maxvalue=255, initialvalue=p_val[0])
+        if r is None:
+            return
+        g = simpledialog.askinteger("Nuevo valor", "Componente G (0-255):", minvalue=0, maxvalue=255, initialvalue=p_val[1])
+        if g is None:
+            return
+        b = simpledialog.askinteger("Nuevo valor", "Componente B (0-255):", minvalue=0, maxvalue=255, initialvalue=p_val[2])
+        if b is None:
+            return
+
+        self.imagen_original.putpixel((x, y), (r, g, b))
         self.mostrar_imagen(self.imagen_original)
-        messagebox.showinfo("Puntos 1c/1d", f"El valor original del píxel (0,0) era: {p_val}.\nSe pintó de Rojo (255, 0, 0).")
+        messagebox.showinfo("Píxel Modificado", f"El valor original del píxel ({x},{y}) era: {p_val}.\nNuevo valor: ({r},{g},{b}).")
 
     def copiar_region_seleccionada(self):
         box = self.obtener_coordenadas_imagen()
@@ -355,8 +382,10 @@ class AppProcesamiento(tk.Tk):
                 VentanaResultado(self, f"Filtro Gauss (σ={sigma})", res)
 
         elif tipo == "realce":
-            res = procesamiento.aplicar_realce_bordes(self.imagen_original)
-            VentanaResultado(self, "Realce de Bordes", res)
+            tam = simpledialog.askinteger("Realce de Bordes", "Tamaño (impar):", minvalue=3, initialvalue=3)
+            if tam:
+                res = procesamiento.aplicar_realce_bordes(self.imagen_original, tam)
+                VentanaResultado(self, f"Realce de Bordes ({tam}x{tam})", res)
 
     def calcular_info_region(self):
         box = self.obtener_coordenadas_imagen()
