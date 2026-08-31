@@ -167,15 +167,18 @@ def aplicar_filtro_mediana(img_pil, tamano_mascara=3):
     return resultado
 
 
-def aplicar_mediana_ponderada_3x3(img_pil):
+def aplicar_mediana_ponderada(img_pil, tamano_mascara=3):
     img_pil = img_pil.convert("RGB")
     ancho, alto = img_pil.size
-    radio_mascara = 1
+    radio_mascara = tamano_mascara // 2
     resultado = Image.new("RGB", (ancho, alto))
 
-    mascara = [1, 2, 1,
-               2, 4, 2,
-               1, 2, 1]
+    mascara = []
+    for dy in range(-radio_mascara, radio_mascara + 1):
+        for dx in range(-radio_mascara, radio_mascara + 1):
+            peso_x = (radio_mascara + 1) - abs(dx)
+            peso_y = (radio_mascara + 1) - abs(dy)
+            mascara.append(peso_x * peso_y)
 
     def mediana_ponderada_de(lista):
         lista_ponderada = []

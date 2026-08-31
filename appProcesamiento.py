@@ -372,8 +372,10 @@ class AppProcesamiento(tk.Tk):
                 VentanaResultado(self, f"Filtro Mediana ({tam}x{tam})", res)
 
         elif tipo == "mediana_p":
-            res = procesamiento.aplicar_mediana_ponderada_3x3(self.imagen_original)
-            VentanaResultado(self, "Mediana Ponderada (3x3)", res)
+            tam = simpledialog.askinteger("Mediana Ponderada", "Tamaño (impar):", minvalue=3, initialvalue=3)
+            if tam:
+                res = procesamiento.aplicar_mediana_ponderada(self.imagen_original, tam)
+                VentanaResultado(self, f"Mediana Ponderada ({tam}x{tam})", res)
 
         elif tipo == "gauss":
             sigma = simpledialog.askfloat("Filtro Gaussiano", "Valor σ:", minvalue=0.1, initialvalue=1.0)
