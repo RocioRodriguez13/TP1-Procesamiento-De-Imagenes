@@ -251,6 +251,48 @@ def aplicar_mediana_ponderada_3x3(img_pil):
     return resultado
 
 
+def aplicar_mediana_ponderada_5x5(img_pil):
+
+    img_pil = img_pil.convert("RGB")        # Convertimos la imagen a RGB
+    ancho, alto = img_pil.size              # Obtenemos el ancho y el alto
+    radio_mascara = 2                       # Para una máscara 5x5 el radio es 2
+    resultado = Image.new("RGB", (ancho, alto)) # Creamos una nueva imagen del mismo tamaño para guardar el resultado
+
+    # Definimos los pesos de la máscara 5x5.
+    mascara = [1, 2, 3, 2, 1,
+                2, 3, 5, 3, 2,
+                3, 5, 9, 5, 3,
+                2, 3, 5, 3, 2,
+                1, 2, 3, 2, 1,]
+
+    def mediana_ponderada_de(lista):
+
+        lista_ponderada = []    # Creamos una lista vacía donde vamos a repetir cada valor según el peso que tenga
+
+        for valor, peso in zip(lista, mascara): # Recorremos los valores de la ventana junto con sus pesos
+            lista_ponderada.extend([valor] * peso)  # Repetimos cada valor tantas veces como indique su peso
+
+        lista_ponderada.sort()      # Ordenamos los valores de menor a mayor
+        n = len(lista_ponderada)
+
+        return lista_ponderada[n // 2]      
+
+    
+    for y in range(alto):           # Recorremos todas las filas
+        for x in range(ancho):      # Recorremos todas las columnas
+
+            # Obtenemos los valores RGB de la ventana 3x3.
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, radio_mascara)
+
+            # Calculamos la mediana ponderada de cada canal
+            r = mediana_ponderada_de(vecindad_r)
+            g = mediana_ponderada_de(vecindad_g)
+            b = mediana_ponderada_de(vecindad_b)
+
+            resultado.putpixel((x, y), (r, g, b))   # Guardamos el nuevo píxel RGB en la misma posición.
+
+    return resultado
+
 
 def aplicar_filtro_gaussiano(img_pil, sigma=1.0):
 
