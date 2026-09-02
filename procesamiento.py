@@ -111,15 +111,12 @@ def generar_ruido_sal_pimienta(img_pil, p):
 
 
 def obtener_ventana(img_pil, x, y, radio_mascara):
-    """
-    Padding por replicación: si el vecino cae fuera de la imagen,
-    se usa el píxel del borde más cercano en su lugar.
-    """
+
     ancho, alto = img_pil.size
     vecindad_r, vecindad_g, vecindad_b = [], [], []
     for dy in range(-radio_mascara, radio_mascara + 1):
         for dx in range(-radio_mascara, radio_mascara + 1):
-            # "Clampeamos" las coordenadas para que nunca se salgan de la imagen
+
             xi = min(max(x + dx, 0), ancho - 1)
             yi = min(max(y + dy, 0), alto - 1)
             r, g, b = img_pil.getpixel((xi, yi))
@@ -167,18 +164,15 @@ def aplicar_filtro_mediana(img_pil, tamano_mascara=3):
     return resultado
 
 
-def aplicar_mediana_ponderada(img_pil, tamano_mascara=3):
+def aplicar_mediana_ponderada_3x3(img_pil):
     img_pil = img_pil.convert("RGB")
     ancho, alto = img_pil.size
-    radio_mascara = tamano_mascara // 2
+    radio_mascara = 1
     resultado = Image.new("RGB", (ancho, alto))
 
-    mascara = []
-    for dy in range(-radio_mascara, radio_mascara + 1):
-        for dx in range(-radio_mascara, radio_mascara + 1):
-            peso_x = (radio_mascara + 1) - abs(dx)
-            peso_y = (radio_mascara + 1) - abs(dy)
-            mascara.append(peso_x * peso_y)
+    mascara = [1, 2, 1,
+               2, 4, 2,
+               1, 2, 1]
 
     def mediana_ponderada_de(lista):
         lista_ponderada = []
