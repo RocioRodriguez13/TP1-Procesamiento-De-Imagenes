@@ -259,12 +259,12 @@ class AppProcesamiento(tk.Tk):
             messagebox.showwarning("Atención", "Primero cargá una imagen.")
             return
 
-        histograma = procesamiento.calcular_histograma(self.imagen_original)
+        histograma = procesamiento.calcular_histograma_relativo(self.imagen_original)
         plt.figure(figsize=(8, 4))
         plt.bar(range(256), histograma, width=1, color="gray")
-        plt.title("Histograma de Niveles de Gris")
+        plt.title("Histograma de Niveles de Gris (Frecuencia Relativa)")
         plt.xlabel("Nivel de gris (0-255)")
-        plt.ylabel("Cantidad de píxeles")
+        plt.ylabel("Frecuencia relativa")
         plt.xlim(0, 255)
         plt.tight_layout()
         plt.show()
