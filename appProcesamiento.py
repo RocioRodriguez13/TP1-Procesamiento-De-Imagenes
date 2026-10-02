@@ -97,7 +97,7 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Filtro Sobel", command=lambda: self.ejecutar_filtro("sobel")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Laplaciano", command=lambda: self.ejecutar_filtro("laplaciano")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Laplaciano con Pendiente", command=lambda: self.ejecutar_filtro("laplaciano_pendiente")).pack(fill="x", pady=2)
-        ttk.Button(self.panel_botones, text="Filtro Marr - Hildred", command=lambda: self.ejecutar_filtro("marr_hildred")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Marr-Hildreth", command=lambda: self.ejecutar_filtro("marr_hildreth")).pack(fill="x", pady=2)
 
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
         self.lbl_info.pack(pady=15, side="bottom")
@@ -420,12 +420,11 @@ class AppProcesamiento(tk.Tk):
                 res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original, umbral)
             VentanaResultado(self, f"Laplaciano con Pendiente (umbral={umbral})", res)
 
-        elif tipo == "marr_hildred":
-            sigma = simpledialog.askfloat("Marr-Hildreth","Valor de sigma:",minvalue=0.1,initialvalue=1.0)
-            umbral = simpledialog.askinteger("Marr-Hildreth","Umbral:",minvalue=0,initialvalue=10)
-            if sigma is not None and umbral is not None:
-                res = procesamiento.aplicar_marr_hildreth(self.imagen_original, sigma, umbral)
-                VentanaResultado(self,f"Marr-Hildreth (sigma={sigma}, umbral={umbral})",res)
+        elif tipo == "marr_hildreth":
+            sigma = simpledialog.askfloat("Marr-Hildreth", "Valor σ:", minvalue=0.1, initialvalue=1.0)
+            if sigma:
+                res = procesamiento.aplicar_marr_hildreth(self.imagen_original, sigma)
+                VentanaResultado(self, f"Marr-Hildreth (σ={sigma})", res)
 
     def calcular_info_region(self):
         box = self.obtener_coordenadas_imagen()

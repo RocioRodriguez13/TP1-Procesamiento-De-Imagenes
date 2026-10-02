@@ -572,7 +572,7 @@ def aplicar_bordes_laplaciano_pendiente(img_pil, umbral_borde=100):
     return resultado
 
 
-def aplicar_marr_hildreth(img_pil, sigma, umbral):
+def aplicar_marr_hildreth(img_pil, sigma):
 
     img_pil = img_pil.convert("RGB")
 
@@ -640,11 +640,8 @@ def aplicar_marr_hildreth(img_pil, sigma, umbral):
 
                 vecino = valores_log[yi][xi]
 
-                diferencia = abs(centro - vecino)
-
-                # Cruce por cero + umbral
-                if ((centro < 0 and vecino > 0) or (centro > 0 and vecino < 0)) and diferencia >= umbral:
-
+                # Cruce por cero
+                if (centro < 0 and vecino > 0) or (centro > 0 and vecino < 0):
                     hay_borde = True
                     break
 
