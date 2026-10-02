@@ -263,7 +263,7 @@ def aplicar_mediana_ponderada_5x5(img_pil):
                 2, 3, 5, 3, 2,
                 3, 5, 9, 5, 3,
                 2, 3, 5, 3, 2,
-                1, 2, 3, 2, 1,]
+                1, 2, 3, 2, 1]
 
     def mediana_ponderada_de(lista):
 
@@ -378,5 +378,292 @@ def aplicar_realce_bordes(img_pil, tamano_mascara=3):
 
             # Guardamos el nuevo píxel RGB
             resultado.putpixel((x, y), (r, g, b))
+
+    return resultado
+
+
+def aplicar_bordes_prewitt(img_pil):
+    img_pil = img_pil.convert("RGB")
+
+    ancho, alto = img_pil.size
+    resultado = Image.new("RGB", (ancho, alto))
+
+    mascara_x = [
+        -1, 0, 1,
+        -1, 0, 1,
+        -1, 0, 1]
+
+    mascara_y = [
+        -1, -1, -1,
+         0,  0,  0,
+         1,  1,  1]
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            # Obtenemos la ventana 3x3
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
+                img_pil, x, y, 1
+            )
+
+            # Calculamos Gx y Gy para cada canal
+            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))
+            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))
+
+            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))
+            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))
+
+            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))
+            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))
+
+            # Magnitud del gradiente
+            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))
+            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))
+            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))
+
+            resultado.putpixel((x, y), (r, g, b))
+
+    return resultado
+
+
+def aplicar_bordes_sobel(img_pil):
+    img_pil = img_pil.convert("RGB")
+
+    ancho, alto = img_pil.size
+    resultado = Image.new("RGB", (ancho, alto))
+
+    # Operador de Sobel horizontal (Gx)
+    mascara_x = [
+        -1, 0, 1,
+        -2, 0, 2,
+        -1, 0, 1]
+
+    # Operador de Sobel vertical (Gy)
+    mascara_y = [
+        -1, -2, -1,
+        0,  0,  0,
+        1,  2,  1]
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            # Obtenemos la ventana 3x3
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
+                img_pil, x, y, 1
+            )
+
+            # Calculamos Gx y Gy para cada canal
+            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))
+            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))
+
+            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))
+            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))
+
+            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))
+            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))
+
+            # Magnitud del gradiente
+            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))
+            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))
+            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))
+
+            # Guardamos el resultado
+            resultado.putpixel((x, y), (r, g, b))
+
+    return resultado
+
+
+def aplicar_bordes_laplaciano(img_pil):
+    img_pil = img_pil.convert("RGB")
+
+    ancho, alto = img_pil.size
+    resultado = Image.new("RGB", (ancho, alto))
+
+    # Máscara del Laplaciano
+    mascara = [
+        0, -1,  0,
+        -1,  4, -1,
+        0, -1,  0]
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            # Obtenemos la ventana 3x3
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
+                img_pil, x, y, 1
+            )
+
+            # Aplicamos el Laplaciano a cada canal
+            lap_r = sum(v * m for v, m in zip(vecindad_r, mascara))
+            lap_g = sum(v * m for v, m in zip(vecindad_g, mascara))
+            lap_b = sum(v * m for v, m in zip(vecindad_b, mascara))
+
+            # Tomamos el valor absoluto para visualizar los bordes
+            r = max(0, min(255, abs(lap_r)))
+            g = max(0, min(255, abs(lap_g)))
+            b = max(0, min(255, abs(lap_b)))
+
+            # Guardamos el resultado
+            resultado.putpixel((x, y), (r, g, b))
+
+    return resultado
+
+
+def aplicar_bordes_laplaciano_pendiente(img_pil):
+    img_pil = img_pil.convert("RGB")
+
+    ancho, alto = img_pil.size
+    resultado = Image.new("RGB", (ancho, alto))
+
+    # Máscara del Laplaciano
+    mascara = [
+        0, -1,  0,
+        -1,  4, -1,
+        0, -1,  0]
+
+    # Creamos imágenes para almacenar el Laplaciano
+    laplaciano = Image.new("L", (ancho, alto))
+
+    # Primera etapa: calcular el Laplaciano
+    for y in range(alto):
+        for x in range(ancho):
+
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
+                img_pil, x, y, 1
+            )
+
+            # Convertimos el píxel a intensidad
+            vecindad = [
+                (r + g + b) / 3
+                for r, g, b in zip(
+                    vecindad_r,
+                    vecindad_g,
+                    vecindad_b
+                )
+            ]
+
+            valor = sum(v * m for v, m in zip(vecindad, mascara))
+
+            # Guardamos el Laplaciano desplazado para poder visualizarlo
+            valor = max(-255, min(255, valor))
+            laplaciano.putpixel((x, y), int(valor + 255) // 2)
+
+    # SEvaluar la pendiente / cruces por cero
+    for y in range(alto):
+        for x in range(ancho):
+
+            centro = laplaciano.getpixel((x, y)) * 2 - 255
+
+            hay_borde = False
+
+            # Comparamos con los vecinos
+            for dy, dx in [
+                (-1, 0),
+                (1, 0),
+                (0, -1),
+                (0, 1)
+            ]:
+                xi = min(max(x + dx, 0), ancho - 1)
+                yi = min(max(y + dy, 0), alto - 1)
+
+                vecino = laplaciano.getpixel((xi, yi)) * 2 - 255
+
+                # Detectamos cambio de signo
+                if (centro < 0 and vecino > 0) or \
+                   (centro > 0 and vecino < 0):
+                    hay_borde = True
+                    break
+
+            if hay_borde:
+                resultado.putpixel((x, y), (255, 255, 255))
+            else:
+                resultado.putpixel((x, y), (0, 0, 0))
+
+    return resultado
+
+
+def aplicar_marr_hildreth(img_pil, sigma, umbral):
+
+    img_pil = img_pil.convert("RGB")
+
+    ancho, alto = img_pil.size
+
+    # 1. Suavizamos la imagen con un filtro Gaussiano
+    imagen_suavizada = aplicar_filtro_gaussiano(img_pil, sigma)
+
+    # Máscara del Laplaciano
+    mascara_laplaciano = [
+        0, -1,  0,
+        -1,  4, -1,
+        0, -1,  0]
+
+    # Guardamos el resultado del Laplaciano
+    valores_laplaciano = [[0.0] * ancho for _ in range(alto)]
+
+    # 2. Aplicamos el Laplaciano
+    for y in range(alto):
+        for x in range(ancho):
+
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
+                imagen_suavizada, x, y, 1
+            )
+
+            # Convertimos la ventana RGB a escala de gris
+            vecindad_gris = [
+                (r + g + b) / 3
+                for r, g, b in zip(
+                    vecindad_r,
+                    vecindad_g,
+                    vecindad_b
+                )
+            ]
+
+            laplaciano = sum(
+                valor * peso
+                for valor, peso in zip(
+                    vecindad_gris,
+                    mascara_laplaciano
+                )
+            )
+
+            valores_laplaciano[y][x] = laplaciano
+
+    # Detectamos los cruces por cero
+    resultado = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            centro = valores_laplaciano[y][x]
+            hay_borde = False
+
+            # Revisamos los 4 vecinos
+            for dy, dx in [
+                (-1, 0),
+                (1, 0),
+                (0, -1),
+                (0, 1)
+            ]:
+
+                xi = min(max(x + dx, 0), ancho - 1)
+                yi = min(max(y + dy, 0), alto - 1)
+
+                vecino = valores_laplaciano[yi][xi]
+
+                diferencia = abs(centro - vecino)
+
+                # Detectamos cambio de signo
+                if (
+                    (centro < 0 and vecino > 0) or
+                    (centro > 0 and vecino < 0)
+                ) and diferencia >= umbral:
+
+                    hay_borde = True
+                    break
+
+            if hay_borde:
+                resultado.putpixel((x, y), (255, 255, 255))
+            else:
+                resultado.putpixel((x, y), (0, 0, 0))
 
     return resultado

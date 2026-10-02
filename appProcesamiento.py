@@ -90,6 +90,14 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Mediana Ponderada", command=lambda: self.ejecutar_filtro("mediana_p")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Gaussiano", command=lambda: self.ejecutar_filtro("gauss")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Realce de Bordes", command=lambda: self.ejecutar_filtro("realce")).pack(fill="x", pady=2)
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
+
+        ttk.Label(self.panel_botones, text="Detección de bordes", font=("Arial", 10, "bold")).pack(pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Prewitt", command=lambda: self.ejecutar_filtro("prewitt")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Sobel", command=lambda: self.ejecutar_filtro("sobel")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Laplaciano", command=lambda: self.ejecutar_filtro("laplaciano")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Laplaciano con Pendiente", command=lambda: self.ejecutar_filtro("laplaciano_pendiente")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Filtro Marr - Hildred", command=lambda: self.ejecutar_filtro("marr_hildred")).pack(fill="x", pady=2)
 
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
         self.lbl_info.pack(pady=15, side="bottom")
@@ -393,6 +401,26 @@ class AppProcesamiento(tk.Tk):
             if tam:
                 res = procesamiento.aplicar_realce_bordes(self.imagen_original, tam)
                 VentanaResultado(self, f"Realce de Bordes ({tam}x{tam})", res)
+
+        elif tipo == "prewitt":
+            res = procesamiento.aplicar_bordes_prewitt(self.imagen_original)
+            VentanaResultado(self, "Filtro Prewitt", res)
+
+        elif tipo == "sobel":
+                    res = procesamiento.aplicar_bordes_sobel(self.imagen_original)
+                    VentanaResultado(self, "Filtro Sobel", res)
+
+        elif tipo == "laplaciano":
+                        res = procesamiento.aplicar_bordes_laplaciano(self.imagen_original)
+                        VentanaResultado(self, "Filtro Laplaciano", res)
+
+        elif tipo == "laplaciano_pendiente":
+                        res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original)
+                        VentanaResultado(self, "Filtro Laplaciano con Pendiente", res)
+
+        elif tipo == "marr_hildred":
+                        res = procesamiento.aplicar_marr_hildreth(self.imagen_original)
+                        VentanaResultado(self, "Filtro Marr - Hildred", res)
 
     def calcular_info_region(self):
         box = self.obtener_coordenadas_imagen()
