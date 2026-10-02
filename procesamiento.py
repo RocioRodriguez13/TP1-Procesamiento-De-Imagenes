@@ -509,7 +509,7 @@ def aplicar_bordes_laplaciano(img_pil):
     return resultado
 
 
-def aplicar_bordes_laplaciano_pendiente(img_pil):
+def aplicar_bordes_laplaciano_pendiente(img_pil, umbral_borde=100):
     img_pil = img_pil.convert("RGB")
 
     ancho, alto = img_pil.size
@@ -521,58 +521,48 @@ def aplicar_bordes_laplaciano_pendiente(img_pil):
         -1,  4, -1,
         0, -1,  0]
 
-    # Creamos imágenes para almacenar el Laplaciano
-    laplaciano = Image.new("L", (ancho, alto))
+    # Imagen para almacenar el Laplaciano
+    laplaciano = [[0] * ancho for y in range(alto)]
 
-    # Primera etapa: calcular el Laplaciano
+    # Calcular el Laplaciano
     for y in range(alto):
         for x in range(ancho):
 
-            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
-                img_pil, x, y, 1
-            )
+            r, g, b = obtener_ventana(img_pil, x, y, 1)
 
-            # Convertimos el píxel a intensidad
             vecindad = [
-                (r + g + b) / 3
-                for r, g, b in zip(
-                    vecindad_r,
-                    vecindad_g,
-                    vecindad_b
-                )
+                (r[i] + g[i] + b[i]) / 3
+                for i in range(9)
             ]
 
             valor = sum(v * m for v, m in zip(vecindad, mascara))
+            laplaciano[y][x] = valor
 
-            # Guardamos el Laplaciano desplazado para poder visualizarlo
-            valor = max(-255, min(255, valor))
-            laplaciano.putpixel((x, y), int(valor + 255) // 2)
-
-    # SEvaluar la pendiente / cruces por cero
+    # Detectar cruces por cero y evaluar la pendiente
     for y in range(alto):
         for x in range(ancho):
 
-            centro = laplaciano.getpixel((x, y)) * 2 - 255
-
+            centro = laplaciano[y][x]
             hay_borde = False
 
-            # Comparamos con los vecinos
-            for dy, dx in [
-                (-1, 0),
-                (1, 0),
-                (0, -1),
-                (0, 1)
-            ]:
-                xi = min(max(x + dx, 0), ancho - 1)
-                yi = min(max(y + dy, 0), alto - 1)
+            for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
 
-                vecino = laplaciano.getpixel((xi, yi)) * 2 - 255
+                xi = x + dx
+                yi = y + dy
 
-                # Detectamos cambio de signo
-                if (centro < 0 and vecino > 0) or \
-                   (centro > 0 and vecino < 0):
-                    hay_borde = True
-                    break
+                if 0 <= xi < ancho and 0 <= yi < alto:
+
+                    vecino = laplaciano[yi][xi]
+
+                    # Cruce por cero
+                    if centro * vecino < 0:
+
+                        # Evaluar la pendiente
+                        pendiente = abs(centro - vecino)
+
+                        if pendiente > umbral_borde:
+                            hay_borde = True
+                            break
 
             if hay_borde:
                 resultado.putpixel((x, y), (255, 255, 255))
@@ -588,45 +578,50 @@ def aplicar_marr_hildreth(img_pil, sigma, umbral):
 
     ancho, alto = img_pil.size
 
-    # 1. Suavizamos la imagen con un filtro Gaussiano
-    imagen_suavizada = aplicar_filtro_gaussiano(img_pil, sigma)
+    # Tamaño de la máscara
+    n = int(4 * sigma + 1)
 
-    # Máscara del Laplaciano
-    mascara_laplaciano = [
-        0, -1,  0,
-        -1,  4, -1,
-        0, -1,  0]
+    # Si el tamaño resulta par, lo hacemos impar
+    if n % 2 == 0:
+        n += 1
 
-    # Guardamos el resultado del Laplaciano
-    valores_laplaciano = [[0.0] * ancho for _ in range(alto)]
+    radio = n // 2
 
-    # 2. Aplicamos el Laplaciano
+    # Construimos la máscara LoG
+    mascara = []
+
+    for y in range(-radio, radio + 1):
+        for x in range(-radio, radio + 1):
+
+            distancia = x*x + y*y
+
+            valor = (
+                1 / (2 * math.pi * sigma**3)
+                * math.exp(-distancia / (2 * sigma**2))
+                * (distancia / sigma**2 - 2))
+
+            mascara.append(valor)
+
+    # Guardamos los valores del LoG
+    valores_log = [[0.0] * ancho for _ in range(alto)]
+
+    # Aplicamos la máscara LoG
     for y in range(alto):
         for x in range(ancho):
 
-            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
-                imagen_suavizada, x, y, 1
-            )
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, radio)
 
-            # Convertimos la ventana RGB a escala de gris
+            # Convertimos a gris
             vecindad_gris = [
                 (r + g + b) / 3
-                for r, g, b in zip(
-                    vecindad_r,
-                    vecindad_g,
-                    vecindad_b
-                )
-            ]
+                for r, g, b in zip(vecindad_r, vecindad_g, vecindad_b)]
 
-            laplaciano = sum(
-                valor * peso
-                for valor, peso in zip(
-                    vecindad_gris,
-                    mascara_laplaciano
-                )
+            valor = sum(
+                v * m
+                for v, m in zip(vecindad_gris, mascara)
             )
 
-            valores_laplaciano[y][x] = laplaciano
+            valores_log[y][x] = valor
 
     # Detectamos los cruces por cero
     resultado = Image.new("RGB", (ancho, alto))
@@ -634,29 +629,21 @@ def aplicar_marr_hildreth(img_pil, sigma, umbral):
     for y in range(alto):
         for x in range(ancho):
 
-            centro = valores_laplaciano[y][x]
+            centro = valores_log[y][x]
             hay_borde = False
 
             # Revisamos los 4 vecinos
-            for dy, dx in [
-                (-1, 0),
-                (1, 0),
-                (0, -1),
-                (0, 1)
-            ]:
+            for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
 
                 xi = min(max(x + dx, 0), ancho - 1)
                 yi = min(max(y + dy, 0), alto - 1)
 
-                vecino = valores_laplaciano[yi][xi]
+                vecino = valores_log[yi][xi]
 
                 diferencia = abs(centro - vecino)
 
-                # Detectamos cambio de signo
-                if (
-                    (centro < 0 and vecino > 0) or
-                    (centro > 0 and vecino < 0)
-                ) and diferencia >= umbral:
+                # Cruce por cero + umbral
+                if ((centro < 0 and vecino > 0) or (centro > 0 and vecino < 0)) and diferencia >= umbral:
 
                     hay_borde = True
                     break

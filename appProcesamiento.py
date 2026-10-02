@@ -407,20 +407,25 @@ class AppProcesamiento(tk.Tk):
             VentanaResultado(self, "Filtro Prewitt", res)
 
         elif tipo == "sobel":
-                    res = procesamiento.aplicar_bordes_sobel(self.imagen_original)
-                    VentanaResultado(self, "Filtro Sobel", res)
+            res = procesamiento.aplicar_bordes_sobel(self.imagen_original)
+            VentanaResultado(self, "Filtro Sobel", res)
 
         elif tipo == "laplaciano":
-                        res = procesamiento.aplicar_bordes_laplaciano(self.imagen_original)
-                        VentanaResultado(self, "Filtro Laplaciano", res)
+            res = procesamiento.aplicar_bordes_laplaciano(self.imagen_original)
+            VentanaResultado(self, "Filtro Laplaciano", res)
 
         elif tipo == "laplaciano_pendiente":
-                        res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original)
-                        VentanaResultado(self, "Filtro Laplaciano con Pendiente", res)
+            umbral = simpledialog.askinteger("Laplaciano con Pendiente", "Umbral de borde:", minvalue=0,initialvalue=100)
+            if umbral is not None:
+                res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original, umbral)
+            VentanaResultado(self, f"Laplaciano con Pendiente (umbral={umbral})", res)
 
         elif tipo == "marr_hildred":
-                        res = procesamiento.aplicar_marr_hildreth(self.imagen_original)
-                        VentanaResultado(self, "Filtro Marr - Hildred", res)
+            sigma = simpledialog.askfloat("Marr-Hildreth","Valor de sigma:",minvalue=0.1,initialvalue=1.0)
+            umbral = simpledialog.askinteger("Marr-Hildreth","Umbral:",minvalue=0,initialvalue=10)
+            if sigma is not None and umbral is not None:
+                res = procesamiento.aplicar_marr_hildreth(self.imagen_original, sigma, umbral)
+                VentanaResultado(self,f"Marr-Hildreth (sigma={sigma}, umbral={umbral})",res)
 
     def calcular_info_region(self):
         box = self.obtener_coordenadas_imagen()
