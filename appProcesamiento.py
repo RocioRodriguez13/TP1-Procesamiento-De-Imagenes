@@ -98,7 +98,16 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Filtro Laplaciano", command=lambda: self.ejecutar_filtro("laplaciano")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Laplaciano con Pendiente", command=lambda: self.ejecutar_filtro("laplaciano_pendiente")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Marr-Hildreth", command=lambda: self.ejecutar_filtro("marr_hildreth")).pack(fill="x", pady=2)
-
+        ttk.Button(self.panel_botones, text="Filtro Bilateral", command=lambda: self.ejecutar_filtro("bilateral")).pack(fill="x", pady=2)
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8) 
+        ttk.Label(self.panel_botones, text="Difusión", font=("Arial", 10, "bold")).pack(pady=2)
+        ttk.Button(self.panel_botones, text="Difusión Isotrópica", command=lambda: self.ejecutar_filtro("difusion_iso")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Difusión Anisotrópica", command=lambda: self.ejecutar_filtro("difusion_aniso")).pack(fill="x", pady=2)
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
+        ttk.Label(self.panel_botones, text="Umbralización Automática", font=("Arial", 10, "bold")).pack(pady=2)
+        ttk.Button(self.panel_botones, text="Umbral Iterativo", command=lambda: self.ejecutar_filtro("umbral_iterativo")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Umbral Otsu", command=lambda: self.ejecutar_filtro("umbral_otsu")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Segmentación por Bandas", command=lambda: self.ejecutar_filtro("segmentacion_color")).pack(fill="x", pady=2)
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
         self.lbl_info.pack(pady=15, side="bottom")
 
@@ -425,6 +434,54 @@ class AppProcesamiento(tk.Tk):
             if sigma:
                 res = procesamiento.aplicar_marr_hildreth(self.imagen_original, sigma)
                 VentanaResultado(self, f"Marr-Hildreth (σ={sigma})", res)
+        
+        elif tipo == "difusion_iso":
+            iteraciones = simpledialog.askinteger("Difusión Isotrópica", "Iteraciones:", minvalue=1, initialvalue=10)
+            if iteraciones:
+                lambd = simpledialog.askfloat("Difusión Isotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15)
+                if lambd:
+                    res = procesamiento.aplicar_difusion_isotropica(self.imagen_original, iteraciones, lambd)
+                    VentanaResultado(self, f"Difusión Isotrópica (it={iteraciones})", res)
+
+        elif tipo == "difusion_aniso":
+            iteraciones = simpledialog.askinteger("Difusión Anisotrópica", "Iteraciones:", minvalue=1, initialvalue=10)
+            if iteraciones:
+                lambd = simpledialog.askfloat("Difusión Anisotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15)
+                if lambd:
+                    k = simpledialog.askfloat("Difusión Anisotrópica", "Valor de k:", minvalue=1, initialvalue=15)
+                    if k:
+                        res = procesamiento.aplicar_difusion_anisotropica(self.imagen_original, iteraciones, lambd, k)
+                        VentanaResultado(self, f"Difusión Anisotrópica (it={iteraciones}, k={k})", res)
+
+        elif tipo == "bilateral":
+            sigmaS = simpledialog.askfloat("Filtro Bilateral", "σ espacial:", minvalue=0.1, initialvalue=3)
+            if sigmaS:
+                sigmaR = simpledialog.askfloat("Filtro Bilateral", "σ de intensidad:", minvalue=0.1, initialvalue=30)
+                if sigmaR:
+                    tamano = simpledialog.askinteger("Filtro Bilateral", "Tamaño ventana (impar):", minvalue=3, initialvalue=7)
+                    if tamano:
+                        res = procesamiento.aplicar_filtro_bilateral(self.imagen_original, sigmaS, sigmaR, tamano)
+                        VentanaResultado(self, f"Filtro Bilateral (σs={sigmaS}, σr={sigmaR})", res)
+
+        elif tipo == "umbral_iterativo":
+            umbral = procesamiento.umbral_optimo_iterativo(self.imagen_original)
+            messagebox.showinfo("Umbral Iterativo", f"El umbral óptimo calculado es: {umbral:.2f}")
+            res = procesamiento.aplicar_umbral(self.imagen_original, umbral)
+            VentanaResultado(self, f"Umbral Iterativo (T={umbral:.2f})", res)
+
+        elif tipo == "umbral_otsu":
+            umbral = procesamiento.metodo_otsu(self.imagen_original)
+            messagebox.showinfo("Umbral Otsu", f"El umbral óptimo de Otsu es: {umbral}")
+            res = procesamiento.aplicar_umbral(self.imagen_original, umbral)
+            VentanaResultado(self, f"Umbral Otsu (T={umbral})", res)
+
+        elif tipo == "segmentacion_color":
+            res = procesamiento.segmentacion_color_por_bandas(self.imagen_original)
+            VentanaResultado(self, "Segmentación por Bandas", res)
+
+
+
+
 
     def calcular_info_region(self):
         box = self.obtener_coordenadas_imagen()

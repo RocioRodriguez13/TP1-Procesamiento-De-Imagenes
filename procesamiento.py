@@ -635,3 +635,432 @@ def aplicar_marr_hildreth(img_pil, sigma):
                 resultado.putpixel((x, y), (0, 0, 0))
 
     return resultado
+
+
+def difusion_isotropica_canal(matriz, ancho, alto, iteraciones, lambd):
+
+    for it in range(iteraciones):   # Repetimos el proceso la cantidad de iteraciones pedida
+        nueva = []  # Matriz donde guardamos el resultado de esta iteración
+        for i in range(alto):
+            fila = [0] * ancho
+            nueva.append(fila)
+
+        for y in range(alto):
+            for x in range(ancho):
+                centro = matriz[y][x]
+
+                # Buscamos los 4 vecinos (norte, sur, este, oeste). Si estamos en el borde, repetimos el centro.
+                if y - 1 >= 0:
+                    norte = matriz[y - 1][x]
+                else:
+                    norte = centro
+
+                if y + 1 <= alto - 1:
+                    sur = matriz[y + 1][x]
+                else:
+                    sur = centro
+
+                if x + 1 <= ancho - 1:
+                    este = matriz[y][x + 1]
+                else:
+                    este = centro
+
+                if x - 1 >= 0:
+                    oeste = matriz[y][x - 1]
+                else:
+                    oeste = centro
+
+                # Sumamos las diferencias de cada vecino contra el centro (los gradientes)
+                sumaGradientes = (norte - centro) + (sur - centro) + (este - centro) + (oeste - centro)
+
+                nuevoValor = centro + lambd * sumaGradientes   # Actualizamos el valor del pixel
+
+                # Nos aseguramos de que quede entre 0 y 255
+                if nuevoValor < 0:
+                    nuevoValor = 0
+                if nuevoValor > 255:
+                    nuevoValor = 255
+
+                nueva[y][x] = nuevoValor
+
+        matriz = nueva  
+
+    return matriz
+
+
+def aplicar_difusion_isotropica(imgPil, iteraciones=10, lambd=0.15):
+    imgPil = imgPil.convert("RGB")
+    ancho, alto = imgPil.size
+
+    # Creamos una matriz por cada canal con los valores originales de la imagen
+    matrizR = []
+    matrizG = []
+    matrizB = []
+    for i in range(alto):
+        matrizR.append([0] * ancho)
+        matrizG.append([0] * ancho)
+        matrizB.append([0] * ancho)
+
+    for y in range(alto):
+        for x in range(ancho):
+            r, g, b = imgPil.getpixel((x, y))
+            matrizR[y][x] = r
+            matrizG[y][x] = g
+            matrizB[y][x] = b
+
+    # Aplicamos la difusión isotrópica a cada canal por separado
+    matrizR = difusion_isotropica_canal(matrizR, ancho, alto, iteraciones, lambd)
+    matrizG = difusion_isotropica_canal(matrizG, ancho, alto, iteraciones, lambd)
+    matrizB = difusion_isotropica_canal(matrizB, ancho, alto, iteraciones, lambd)
+
+    resultado = Image.new("RGB", (ancho, alto))
+    for y in range(alto):
+        for x in range(ancho):
+            resultado.putpixel((x, y), (int(matrizR[y][x]), int(matrizG[y][x]), int(matrizB[y][x])))
+
+    return resultado
+
+
+def coeficiente_difusion(gradiente, k):
+    return math.exp(-((gradiente / k) ** 2))
+
+
+def difusion_anisotropica_canal(matriz, ancho, alto, iteraciones, lambd, k):
+
+    for it in range(iteraciones):
+        nueva = []
+        for i in range(alto):
+            fila = [0] * ancho
+            nueva.append(fila)
+
+        for y in range(alto):
+            for x in range(ancho):
+                centro = matriz[y][x]
+
+                if y - 1 >= 0:
+                    norte = matriz[y - 1][x]
+                else:
+                    norte = centro
+
+                if y + 1 <= alto - 1:
+                    sur = matriz[y + 1][x]
+                else:
+                    sur = centro
+
+                if x + 1 <= ancho - 1:
+                    este = matriz[y][x + 1]
+                else:
+                    este = centro
+
+                if x - 1 >= 0:
+                    oeste = matriz[y][x - 1]
+                else:
+                    oeste = centro
+
+                gradN = norte - centro
+                gradS = sur - centro
+                gradE = este - centro
+                gradO = oeste - centro
+
+                
+                cN = coeficiente_difusion(gradN, k)
+                cS = coeficiente_difusion(gradS, k)
+                cE = coeficiente_difusion(gradE, k)
+                cO = coeficiente_difusion(gradO, k)
+
+                nuevoValor = centro + lambd * (cN * gradN + cS * gradS + cE * gradE + cO * gradO)
+
+                if nuevoValor < 0:
+                    nuevoValor = 0
+                if nuevoValor > 255:
+                    nuevoValor = 255
+
+                nueva[y][x] = nuevoValor
+
+        matriz = nueva
+
+    return matriz
+
+
+def aplicar_difusion_anisotropica(imgPil, iteraciones=10, lambd=0.15, k=15):
+    imgPil = imgPil.convert("RGB")
+    ancho, alto = imgPil.size
+
+    matrizR = []
+    matrizG = []
+    matrizB = []
+    for i in range(alto):
+        matrizR.append([0] * ancho)
+        matrizG.append([0] * ancho)
+        matrizB.append([0] * ancho)
+
+    for y in range(alto):
+        for x in range(ancho):
+            r, g, b = imgPil.getpixel((x, y))
+            matrizR[y][x] = r
+            matrizG[y][x] = g
+            matrizB[y][x] = b
+
+    matrizR = difusion_anisotropica_canal(matrizR, ancho, alto, iteraciones, lambd, k)
+    matrizG = difusion_anisotropica_canal(matrizG, ancho, alto, iteraciones, lambd, k)
+    matrizB = difusion_anisotropica_canal(matrizB, ancho, alto, iteraciones, lambd, k)
+
+    resultado = Image.new("RGB", (ancho, alto))
+    for y in range(alto):
+        for x in range(ancho):
+            resultado.putpixel((x, y), (int(matrizR[y][x]), int(matrizG[y][x]), int(matrizB[y][x])))
+
+    return resultado
+
+
+
+
+def aplicar_filtro_bilateral(imgPil, sigmaS=3, sigmaR=30, tamanoMascara=7):
+    imgPil = imgPil.convert("RGB")
+    ancho, alto = imgPil.size
+    radioMascara = tamanoMascara // 2
+    resultado = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):           # Recorremos todas las filas
+        for x in range(ancho):      # Recorremos todas las columnas
+
+            r0, g0, b0 = imgPil.getpixel((x, y))   # Valor del pixel central
+
+            sumaR = 0.0
+            sumaG = 0.0
+            sumaB = 0.0
+            # Acumuladores del numerador (pesos * valor)
+
+            pesoTotalR = 0.0
+            pesoTotalG = 0.0
+            pesoTotalB = 0.0
+
+            for dy in range(-radioMascara, radioMascara + 1):
+                for dx in range(-radioMascara, radioMascara + 1):
+
+                    xi = x + dx
+                    yi = y + dy
+                    if xi < 0:
+                        xi = 0
+                    if xi > ancho - 1:
+                        xi = ancho - 1
+                    if yi < 0:
+                        yi = 0
+                    if yi > alto - 1:
+                        yi = alto - 1
+
+                    ri, gi, bi = imgPil.getpixel((xi, yi))
+
+                    pesoEspacial = math.exp(-((dx ** 2 + dy ** 2) / (2 * sigmaS ** 2)))
+
+                    pesoR = pesoEspacial * math.exp(-(((ri - r0) ** 2) / (2 * sigmaR ** 2)))
+                    pesoG = pesoEspacial * math.exp(-(((gi - g0) ** 2) / (2 * sigmaR ** 2)))
+                    pesoB = pesoEspacial * math.exp(-(((bi - b0) ** 2) / (2 * sigmaR ** 2)))
+
+                    sumaR = sumaR + ri * pesoR
+                    sumaG = sumaG + gi * pesoG
+                    sumaB = sumaB + bi * pesoB
+
+                    pesoTotalR = pesoTotalR + pesoR
+                    pesoTotalG = pesoTotalG + pesoG
+                    pesoTotalB = pesoTotalB + pesoB
+
+            # Dividimos por la suma de los pesos (Wx) para normalizar
+            r = int(sumaR / pesoTotalR)
+            g = int(sumaG / pesoTotalG)
+            b = int(sumaB / pesoTotalB)
+
+            resultado.putpixel((x, y), (r, g, b))
+
+    return resultado
+
+
+
+def convertir_a_gris(imgPil):
+    imgPil = imgPil.convert("RGB")
+    ancho, alto = imgPil.size
+    gris = []
+    for i in range(alto):
+        fila = [0] * ancho
+        gris.append(fila)
+
+    for y in range(alto):
+        for x in range(ancho):
+            r, g, b = imgPil.getpixel((x, y))
+            gris[y][x] = int((r + g + b) / 3)
+
+    return gris, ancho, alto
+
+
+def umbral_optimo_iterativo(imgPil, deltaT=0.5):
+    gris, ancho, alto = convertir_a_gris(imgPil)
+
+    #umbral inicial, tomamos el promedio de toda la imagen
+    sumaTotal = 0
+    for y in range(alto):
+        for x in range(ancho):
+            sumaTotal = sumaTotal + gris[y][x]
+
+    T = sumaTotal / (ancho * alto)
+
+    while True:
+        sumaG1 = 0
+        cantidadG1 = 0
+        sumaG2 = 0
+        cantidadG2 = 0
+
+        #separamos los pixels en dos grupos según el umbral T
+        for y in range(alto):
+            for x in range(ancho):
+                valor = gris[y][x]
+                if valor > T:
+                    sumaG2 = sumaG2 + valor
+                    cantidadG2 = cantidadG2 + 1
+                else:
+                    sumaG1 = sumaG1 + valor
+                    cantidadG1 = cantidadG1 + 1
+
+        #calculamos la media de cada grupo
+        if cantidadG1 > 0:
+            m1 = sumaG1 / cantidadG1
+        else:
+            m1 = 0
+
+        if cantidadG2 > 0:
+            m2 = sumaG2 / cantidadG2
+        else:
+            m2 = 0
+
+        #calculamos el nuevo umbral
+        nuevoT = (m1 + m2) / 2
+
+        #repetimos hasta que el umbral deje de cambiar significativamente
+        diferencia = nuevoT - T
+        if diferencia < 0:
+            diferencia = -diferencia
+
+        if diferencia < deltaT:
+            T = nuevoT
+            break
+
+        T = nuevoT
+
+    return T
+
+
+def aplicar_umbral(imgPil, umbral):
+    gris, ancho, alto = convertir_a_gris(imgPil)
+    resultado = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):
+        for x in range(ancho):
+            if gris[y][x] > umbral:
+                resultado.putpixel((x, y), (255, 255, 255))
+            else:
+                resultado.putpixel((x, y), (0, 0, 0))
+
+    return resultado
+
+
+def metodo_otsu(imgPil):
+    gris, ancho, alto = convertir_a_gris(imgPil)
+    totalPixeles = ancho * alto
+
+    histograma = [0] * 256
+    for y in range(alto):
+        for x in range(ancho):
+            histograma[gris[y][x]] = histograma[gris[y][x]] + 1
+
+    p = []
+    for i in range(256):
+        p.append(histograma[i] / totalPixeles)
+
+    #suma acumulada P1(t)
+    P1 = [0.0] * 256
+    acumulado = 0.0
+    for i in range(256):
+        acumulado = acumulado + p[i]
+        P1[i] = acumulado
+
+    #promedio ponderado acumulado m(t)
+    m = [0.0] * 256
+    acumuladoM = 0.0
+    for i in range(256):
+        acumuladoM = acumuladoM + i * p[i]
+        m[i] = acumuladoM
+
+    #El promedio ponderado global es el último valor de m
+    mG = m[255]
+
+    #varianza entre clases para cada posible umbral t
+    varianzaEntreClases = [0.0] * 256
+    for t in range(256):
+        denominador = P1[t] * (1 - P1[t])
+        if denominador == 0:
+            varianzaEntreClases[t] = 0
+        else:
+            varianzaEntreClases[t] = ((mG * P1[t] - m[t]) ** 2) / denominador
+
+    # Paso 6: el umbral óptimo es el que maximiza esa varianza
+    umbralOptimo = 0
+    mayorVarianza = varianzaEntreClases[0]
+    for t in range(1, 256):
+        if varianzaEntreClases[t] > mayorVarianza:
+            mayorVarianza = varianzaEntreClases[t]
+            umbralOptimo = t
+
+    return umbralOptimo
+
+
+def obtener_canal(imgPil, canal):
+    ancho, alto = imgPil.size
+    imagenCanal = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):
+        for x in range(ancho):
+            pixel = imgPil.getpixel((x, y))
+            valor = pixel[canal]
+            imagenCanal.putpixel((x, y), (valor, valor, valor))
+
+    return imagenCanal
+
+
+def segmentacion_color_por_bandas(imgPil):
+    imgPil = imgPil.convert("RGB")
+    ancho, alto = imgPil.size
+
+    # Separamos la imagen en sus tres bandas
+    imagenR = obtener_canal(imgPil, 0)
+    imagenG = obtener_canal(imgPil, 1)
+    imagenB = obtener_canal(imgPil, 2)
+
+    # Calculamos el umbral óptimo de Otsu para cada banda por separado
+    umbralR = metodo_otsu(imagenR)
+    umbralG = metodo_otsu(imagenG)
+    umbralB = metodo_otsu(imagenB)
+
+    resultado = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):
+        for x in range(ancho):
+            r, g, b = imgPil.getpixel((x, y))
+
+            # Umbralizamos cada banda: si supera su propio umbral, queda en 255, sino en 0
+            if r > umbralR:
+                rBin = 255
+            else:
+                rBin = 0
+
+            if g > umbralG:
+                gBin = 255
+            else:
+                gBin = 0
+
+            if b > umbralB:
+                bBin = 255
+            else:
+                bBin = 0
+
+            resultado.putpixel((x, y), (rBin, gBin, bBin))
+
+    return resultado
