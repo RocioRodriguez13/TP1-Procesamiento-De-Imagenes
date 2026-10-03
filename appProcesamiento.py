@@ -418,7 +418,7 @@ class AppProcesamiento(tk.Tk):
             umbral = simpledialog.askinteger("Laplaciano con Pendiente", "Umbral de borde:", minvalue=0,initialvalue=100)
             if umbral is not None:
                 res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original, umbral)
-            VentanaResultado(self, f"Laplaciano con Pendiente (umbral={umbral})", res)
+                VentanaResultado(self, f"Laplaciano con Pendiente (umbral={umbral})", res)
 
         elif tipo == "marr_hildreth":
             sigma = simpledialog.askfloat("Marr-Hildreth", "Valor σ:", minvalue=0.1, initialvalue=1.0)

@@ -511,55 +511,39 @@ def aplicar_bordes_laplaciano(img_pil):
 
 def aplicar_bordes_laplaciano_pendiente(img_pil, umbral_borde=100):
     img_pil = img_pil.convert("RGB")
-
     ancho, alto = img_pil.size
     resultado = Image.new("RGB", (ancho, alto))
 
-    # Máscara del Laplaciano
     mascara = [
         0, -1,  0,
         -1,  4, -1,
         0, -1,  0]
 
-    # Imagen para almacenar el Laplaciano
     laplaciano = [[0] * ancho for y in range(alto)]
+    gris = [[0] * ancho for y in range(alto)]  # guardamos también la intensidad original
 
-    # Calcular el Laplaciano
     for y in range(alto):
         for x in range(ancho):
-
             r, g, b = obtener_ventana(img_pil, x, y, 1)
-
-            vecindad = [
-                (r[i] + g[i] + b[i]) / 3
-                for i in range(9)
-            ]
-
+            vecindad = [(r[i] + g[i] + b[i]) / 3 for i in range(9)]
             valor = sum(v * m for v, m in zip(vecindad, mascara))
             laplaciano[y][x] = valor
+            gris[y][x] = vecindad[4]  # el valor del centro de la ventana (el propio píxel)
 
-    # Detectar cruces por cero y evaluar la pendiente
+    resultado = Image.new("RGB", (ancho, alto))
     for y in range(alto):
         for x in range(ancho):
-
             centro = laplaciano[y][x]
             hay_borde = False
 
             for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-
                 xi = x + dx
                 yi = y + dy
-
                 if 0 <= xi < ancho and 0 <= yi < alto:
-
                     vecino = laplaciano[yi][xi]
-
-                    # Cruce por cero
                     if centro * vecino < 0:
-
-                        # Evaluar la pendiente
-                        pendiente = abs(centro - vecino)
-
+                        # Pendiente sobre la intensidad original, no sobre el Laplaciano
+                        pendiente = abs(gris[y][x] - gris[yi][xi])
                         if pendiente > umbral_borde:
                             hay_borde = True
                             break
