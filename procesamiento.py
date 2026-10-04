@@ -383,101 +383,97 @@ def aplicar_realce_bordes(img_pil, tamano_mascara=3):
 
 
 def aplicar_bordes_prewitt(img_pil):
-    img_pil = img_pil.convert("RGB")
+    img_pil = img_pil.convert("RGB")  # Conevrtimos a RGB
+    ancho, alto = img_pil.size  # Obtenemos el tamaño de la imagen
+    resultado = Image.new("RGB", (ancho, alto))  # Imagen nueva y vacía donde vamos a guardar el resultado
 
-    ancho, alto = img_pil.size
-    resultado = Image.new("RGB", (ancho, alto))
-
+    # Máscara horizontal (bordes verticales)
     mascara_x = [
         -1, 0, 1,
         -1, 0, 1,
         -1, 0, 1]
 
+    # Máscara vertical (bordes horizontales)
     mascara_y = [
         -1, -1, -1,
-         0,  0,  0,
-         1,  1,  1]
+        0,  0,  0,
+        1,  1,  1]
 
-    for y in range(alto):
-        for x in range(ancho):
+    for y in range(alto):        # Recorremos todas las filas de la imagen
+        for x in range(ancho):   # Recorremos todas las columnas de la imagen
+            
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, 1) # Obtenemos ventana de 3x3 de vecinos
 
-            # Obtenemos la ventana 3x3
-            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
-                img_pil, x, y, 1
-            )
+            # Aplicamos las máscaras sobre el canal rojo
+            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))  # Gradiente horizontal del rojo
+            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))  # Gradiente vertical del rojo
 
-            # Calculamos Gx y Gy para cada canal
-            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))
-            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))
+            # Aplicamos las máscaras sobre el canal verde
+            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))  # Gradiente horizontal del verde
+            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))  # Gradiente vertical del verde
 
-            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))
-            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))
+            # Aplicamos las máscaras sobre el canal azul
+            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))  # Gradiente horizontal del azul
+            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))  # Gradiente vertical del azul
 
-            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))
-            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))
+            # Combinamos gx y gy para obtener la magnitud total del borde, sin importar su dirección
+            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))  # Magnitud del borde en rojo
+            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))  # Magnitud del borde en verde
+            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))  # Magnitud del borde en azul
 
-            # Magnitud del gradiente
-            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))
-            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))
-            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))
-
-            resultado.putpixel((x, y), (r, g, b))
+            resultado.putpixel((x, y), (r, g, b))  # Escribimos el píxel resultado
 
     return resultado
 
 
 def aplicar_bordes_sobel(img_pil):
-    img_pil = img_pil.convert("RGB")
+    img_pil = img_pil.convert("RGB")  # Conevrtimos a RGB
+    ancho, alto = img_pil.size  # Obtenemos el tamaño de la imagen
+    resultado = Image.new("RGB", (ancho, alto))  # Imagen nueva y vacía donde vamos a guardar el resultado
 
-    ancho, alto = img_pil.size
-    resultado = Image.new("RGB", (ancho, alto))
-
-    # Operador de Sobel horizontal (Gx)
+    # Máscara horizontal (bordes verticales)
     mascara_x = [
         -1, 0, 1,
         -2, 0, 2,
         -1, 0, 1]
 
-    # Operador de Sobel vertical (Gy)
+    # Máscara vertical (bordes horizontales)
     mascara_y = [
         -1, -2, -1,
         0,  0,  0,
         1,  2,  1]
 
-    for y in range(alto):
-        for x in range(ancho):
+    for y in range(alto):        # Recorremos todas las filas de la imagen
+        for x in range(ancho):   # Recorremos todas las columnas de la imagen
 
-            # Obtenemos la ventana 3x3
-            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
-                img_pil, x, y, 1
-            )
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, 1) # Obtenemos ventana de 3x3 de vecinos
 
-            # Calculamos Gx y Gy para cada canal
-            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))
-            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))
+            # Aplicamos las máscaras sobre el canal rojo
+            gx_r = sum(v * m for v, m in zip(vecindad_r, mascara_x))  # Gradiente horizontal del rojo
+            gy_r = sum(v * m for v, m in zip(vecindad_r, mascara_y))  # Gradiente vertical del rojo
 
-            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))
-            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))
+            # Aplicamos las máscaras sobre el canal verde
+            gx_g = sum(v * m for v, m in zip(vecindad_g, mascara_x))  # Gradiente horizontal del verde
+            gy_g = sum(v * m for v, m in zip(vecindad_g, mascara_y))  # Gradiente vertical del verde
 
-            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))
-            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))
+            # Aplicamos las máscaras sobre el canal azul
+            gx_b = sum(v * m for v, m in zip(vecindad_b, mascara_x))  # Gradiente horizontal del azul
+            gy_b = sum(v * m for v, m in zip(vecindad_b, mascara_y))  # Gradiente vertical del azul
 
-            # Magnitud del gradiente
-            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))
-            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))
-            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))
+            # Combinamos gx y gypara obtener la magnitud total del borde
+            r = int(min(255, math.sqrt(gx_r**2 + gy_r**2)))  # Magnitud del borde en rojo
+            g = int(min(255, math.sqrt(gx_g**2 + gy_g**2)))  # Magnitud del borde en verde
+            b = int(min(255, math.sqrt(gx_b**2 + gy_b**2)))  # Magnitud del borde en azul
 
-            # Guardamos el resultado
             resultado.putpixel((x, y), (r, g, b))
 
     return resultado
 
 
 def aplicar_bordes_laplaciano(img_pil):
-    img_pil = img_pil.convert("RGB")
-
-    ancho, alto = img_pil.size
-    resultado = Image.new("RGB", (ancho, alto))
+    img_pil = img_pil.convert("RGB")                # Conevrtimos a RGB
+    ancho, alto = img_pil.size                      # Obtenemos el tamaño de la imagen
+    resultado = Image.new("RGB", (ancho, alto))     # Imagen nueva y vacía donde vamos a guardar el resultado
 
     # Máscara del Laplaciano
     mascara = [
@@ -485,20 +481,17 @@ def aplicar_bordes_laplaciano(img_pil):
         -1,  4, -1,
         0, -1,  0]
 
-    for y in range(alto):
-        for x in range(ancho):
+    for y in range(alto):        # Recorremos todas las filas de la imagen
+        for x in range(ancho):   # Recorremos todas las columnas de la imagen
 
-            # Obtenemos la ventana 3x3
-            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(
-                img_pil, x, y, 1
-            )
+            vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, 1) # Obtenemos ventana de 3x3 de vecinos
 
             # Aplicamos el Laplaciano a cada canal
             lap_r = sum(v * m for v, m in zip(vecindad_r, mascara))
             lap_g = sum(v * m for v, m in zip(vecindad_g, mascara))
             lap_b = sum(v * m for v, m in zip(vecindad_b, mascara))
 
-            # Tomamos el valor absoluto para visualizar los bordes
+            # Tomamos el valor absoluto (0=sin cambio, más alto=más borde)
             r = max(0, min(255, abs(lap_r)))
             g = max(0, min(255, abs(lap_g)))
             b = max(0, min(255, abs(lap_b)))
@@ -506,48 +499,57 @@ def aplicar_bordes_laplaciano(img_pil):
             # Guardamos el resultado
             resultado.putpixel((x, y), (r, g, b))
 
-    return resultado
+    return resultado 
 
 
 def aplicar_bordes_laplaciano_pendiente(img_pil, umbral_borde=100):
-    img_pil = img_pil.convert("RGB")
-    ancho, alto = img_pil.size
-    resultado = Image.new("RGB", (ancho, alto))
+    img_pil = img_pil.convert("RGB")  # Convertimos a RGB
+    ancho, alto = img_pil.size  # Obtenemos el tamaño de la imagen
 
+    # Máscara del Laplaciano
     mascara = [
         0, -1,  0,
         -1,  4, -1,
         0, -1,  0]
 
+    # Dos matrices del mismo tamaño que la imagen: una para guardar la respuesta del Laplaciano de cada píxel,
+    # otra para guardar su intensidad de gris original.
+    # Las necesitamos calculadas de antemano, porque vamos a comparar cada píxel con sus vecinos,
+    # y no podemos hacerlo si solo tenemos un píxel a la vez.
     laplaciano = [[0] * ancho for y in range(alto)]
     gris = [[0] * ancho for y in range(alto)]  # guardamos también la intensidad original
 
+    # PRIMERA PASADA: calculamos el Laplaciano y la intensidad de gris de cada píxel
     for y in range(alto):
         for x in range(ancho):
-            r, g, b = obtener_ventana(img_pil, x, y, 1)
-            vecindad = [(r[i] + g[i] + b[i]) / 3 for i in range(9)]
-            valor = sum(v * m for v, m in zip(vecindad, mascara))
-            laplaciano[y][x] = valor
+            r, g, b = obtener_ventana(img_pil, x, y, 1)  # Ventana 3x3 de vecinos
+            vecindad = [(r[i] + g[i] + b[i]) / 3 for i in range(9)]  # Convertimos cada vecino a gris (promedio RGB)
+            valor = sum(v * m for v, m in zip(vecindad, mascara))  # Aplicamos la máscara del Laplaciano sobre el gris
+            laplaciano[y][x] = valor  # Guardamos la respuesta del Laplaciano para este píxel
             gris[y][x] = vecindad[4]  # el valor del centro de la ventana (el propio píxel)
 
-    resultado = Image.new("RGB", (ancho, alto))
+    resultado = Image.new("RGB", (ancho, alto))  # Imagen final donde vamos a marcar los bordes
+
+    # SEGUNDA PASADA: para cada píxel, buscamos si hay un cruce por cero con algún vecino
     for y in range(alto):
         for x in range(ancho):
-            centro = laplaciano[y][x]
-            hay_borde = False
+            centro = laplaciano[y][x]  # Respuesta del Laplaciano en este píxel
+            hay_borde = False  # Todavía no encontramos ningún cruce por cero válido
 
+            # Revisamos los 4 vecinos directos (arriba, abajo, izquierda, derecha)
             for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 xi = x + dx
                 yi = y + dy
-                if 0 <= xi < ancho and 0 <= yi < alto:
-                    vecino = laplaciano[yi][xi]
-                    if centro * vecino < 0:
+                if 0 <= xi < ancho and 0 <= yi < alto:  # No salirnos de la imagen
+                    vecino = laplaciano[yi][xi]  # Respuesta del Laplaciano en el vecino
+                    if centro * vecino < 0:  # Si tienen signo distinto, hay un cruce por cero acá
                         # Pendiente sobre la intensidad original, no sobre el Laplaciano
-                        pendiente = abs(gris[y][x] - gris[yi][xi])
-                        if pendiente > umbral_borde:
-                            hay_borde = True
-                            break
+                        pendiente = abs(gris[y][x] - gris[yi][xi])  # Diferencia de intensidad entre ambos píxeles
+                        if pendiente > umbral_borde:  # Si el salto de intensidad es suficientemente fuerte
+                            hay_borde = True  # lo marcamos como borde
+                            break  # No hace falta seguir revisando los demás vecinos
 
+            # Pintamos el píxel: blanco si es borde, negro si no
             if hay_borde:
                 resultado.putpixel((x, y), (255, 255, 255))
             else:
@@ -558,77 +560,78 @@ def aplicar_bordes_laplaciano_pendiente(img_pil, umbral_borde=100):
 
 def aplicar_marr_hildreth(img_pil, sigma):
 
-    img_pil = img_pil.convert("RGB")
+    img_pil = img_pil.convert("RGB")  # Convertimos a RGB
+    ancho, alto = img_pil.size  # Obtenemos el tamaño de la imagen
 
-    ancho, alto = img_pil.size
-
-    # Tamaño de la máscara
+    # Tamaño de la máscara: n = 4σ + 1
     n = int(4 * sigma + 1)
 
     # Si el tamaño resulta par, lo hacemos impar
     if n % 2 == 0:
         n += 1
+    radio = n // 2  # Radio de la ventana a partir del tamaño total
 
-    radio = n // 2
-
-    # Construimos la máscara LoG
+    # Construimos la máscara LoG (Laplaciano de la Gaussiana)
     mascara = []
 
-    for y in range(-radio, radio + 1):
-        for x in range(-radio, radio + 1):
+    for y in range(-radio, radio + 1):        # Recorremos cada posición vertical dentro de la ventana
+        for x in range(-radio, radio + 1):    # Recorremos cada posición horizontal dentro de la ventana
 
-            distancia = x*x + y*y
+            distancia = x*x + y*y  # Distancia al cuadrado desde el centro
 
+            # Fórmula de la segunda derivada de la Gaussiana
             valor = (
                 1 / (2 * math.pi * sigma**3)
                 * math.exp(-distancia / (2 * sigma**2))
                 * (distancia / sigma**2 - 2))
 
-            mascara.append(valor)
+            mascara.append(valor)  # Guardamos el peso calculado para esta posición de la máscara
 
-    # Guardamos los valores del LoG
+    # Matriz del mismo tamaño que la imagen, donde vamos a guardar la respuesta del filtro LoG para cada píxel
     valores_log = [[0.0] * ancho for _ in range(alto)]
 
-    # Aplicamos la máscara LoG
+    # PRIMERA PASADA: aplicamos la máscara LoG sobre toda la imagen
     for y in range(alto):
         for x in range(ancho):
 
+            # Ventana de vecinos del tamaño de la máscara LoG
             vecindad_r, vecindad_g, vecindad_b = obtener_ventana(img_pil, x, y, radio)
 
-            # Convertimos a gris
+            # Convertimos cada vecino a gris
             vecindad_gris = [
                 (r + g + b) / 3
                 for r, g, b in zip(vecindad_r, vecindad_g, vecindad_b)]
 
-            valor = sum(
-                v * m
-                for v, m in zip(vecindad_gris, mascara)
-            )
+            # Aplicamos la máscara
+            valor = sum(v * m for v, m in zip(vecindad_gris, mascara))
 
-            valores_log[y][x] = valor
+            valores_log[y][x] = valor  # Guardamos la respuesta del LoG para este píxel
 
-    # Detectamos los cruces por cero
+    # Imagen final donde vamos a marcar los bordes detectados
     resultado = Image.new("RGB", (ancho, alto))
 
+    # SEGUNDA PASADA: buscamos cruces por cero comparando cada píxel con sus vecinos
     for y in range(alto):
         for x in range(ancho):
 
-            centro = valores_log[y][x]
-            hay_borde = False
+            centro = valores_log[y][x]  # Respuesta del LoG en el píxel actual
+            hay_borde = False  # Todavía no encontramos ningún cruce por cero
 
-            # Revisamos los 4 vecinos
+            # Revisamos los 4 vecinos directos (arriba, abajo, izquierda, derecha)
             for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
 
+                # No salrinos de la imagen en los bordes
                 xi = min(max(x + dx, 0), ancho - 1)
                 yi = min(max(y + dy, 0), alto - 1)
 
-                vecino = valores_log[yi][xi]
+                vecino = valores_log[yi][xi]  # Respuesta del LoG en ese vecino
 
-                # Cruce por cero
+                # Cruce por cero: si el centro y el vecino tienen signos opuestos, hay un borde
                 if (centro < 0 and vecino > 0) or (centro > 0 and vecino < 0):
                     hay_borde = True
                     break
 
+            # Pintamos el píxel: blanco si es borde, negro si no
             if hay_borde:
                 resultado.putpixel((x, y), (255, 255, 255))
             else:
@@ -1001,7 +1004,7 @@ def metodo_otsu(imgPil):
         else:
             varianzaEntreClases[t] = ((mG * P1[t] - m[t]) ** 2) / denominador
 
-    # Paso 6: el umbral óptimo es el que maximiza esa varianza
+    # el umbral óptimo es el que maximiza esa varianza
     umbralOptimo = 0
     mayorVarianza = varianzaEntreClases[0]
     for t in range(1, 256):
