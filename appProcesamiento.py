@@ -109,7 +109,11 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Umbral Otsu", command=lambda: self.ejecutar_filtro("umbral_otsu")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Segmentación por Bandas", command=lambda: self.ejecutar_filtro("segmentacion_color")).pack(fill="x", pady=2)
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
-        self.lbl_info.pack(pady=15, side="bottom")
+        self.lbl_info.pack(pady=15, side="bottom")        
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8) 
+        ttk.Button(self.panel_botones, text="Detector de Canny",command=lambda: self.ejecutar_filtro("canny")).pack(fill="x", pady=2)
+
+
 
         self.canvas = tk.Canvas(self, bg="#333333")
         self.canvas.pack(side="right", expand=True, fill="both", padx=10, pady=10)
@@ -478,6 +482,20 @@ class AppProcesamiento(tk.Tk):
         elif tipo == "segmentacion_color":
             res = procesamiento.segmentacion_color_por_bandas(self.imagen_original)
             VentanaResultado(self, "Segmentación por Bandas", res)
+
+        elif tipo == "canny":
+         sigma = simpledialog.askfloat("Canny", "Valor σ del suavizado:", minvalue=0.1, initialvalue=1.0)
+         if sigma:
+             t1 = simpledialog.askfloat("Canny", "Umbral bajo t1:", minvalue=0, initialvalue=20)
+             if t1 is not None:
+               t2 = simpledialog.askfloat("Canny", "Umbral alto t2 (mayor que t1):", minvalue=0, initialvalue=50)
+               if t2 is not None and t2 > t1:
+                 res = procesamiento.aplicar_canny(self.imagen_original, sigma, t1, t2)
+                 VentanaResultado(self, f"Canny (σ={sigma}, t1={t1}, t2={t2})", res)
+             elif t2 is not None:
+                messagebox.showwarning("Atención", "t2 debe ser mayor que t1.")
+
+        
 
 
 

@@ -1067,3 +1067,178 @@ def segmentacion_color_por_bandas(imgPil):
             resultado.putpixel((x, y), (rBin, gBin, bBin))
 
     return resultado
+
+
+
+def valor_seguro(matriz, x, y, ancho, alto):
+    # Repetimos el borde si nos salimos de la imagen 
+    xi = min(max(x, 0), ancho - 1)
+    yi = min(max(y, 0), alto - 1)
+    return matriz[yi][xi]
+
+
+def canny_suavizar(gris, ancho, alto, sigma):
+    # Convolución con una gaussiana.
+    tamano_mascara = int(2 * sigma + 1)
+    if tamano_mascara % 2 == 0:
+        tamano_mascara += 1
+    radio = tamano_mascara // 2
+
+    # Construimos la máscara gaussiana normalizada
+    mascara = []
+    suma_pesos = 0.0
+    for dy in range(-radio, radio + 1):
+        for dx in range(-radio, radio + 1):
+            peso = math.exp(-(dx ** 2 + dy ** 2) / (2 * sigma ** 2))
+            mascara.append(peso)
+            suma_pesos += peso
+    mascara = [p / suma_pesos for p in mascara]
+
+    suavizada = [[0.0] * ancho for _ in range(alto)]
+    for y in range(alto):
+        for x in range(ancho):
+            suma = 0.0
+            i = 0
+            for dy in range(-radio, radio + 1):
+                for dx in range(-radio, radio + 1):
+                    suma += valor_seguro(gris, x + dx, y + dy, ancho, alto) * mascara[i]
+                    i += 1
+            suavizada[y][x] = suma
+    return suavizada
+
+
+def canny_gradiente(suavizada, ancho, alto):
+   
+    mascara_x = [-1, 0, 1,
+                 -2, 0, 2,
+                 -1, 0, 1]
+    mascara_y = [-1, -2, -1,
+                  0,  0,  0,
+                  1,  2,  1]
+  #Cálculo del ángulo del gradiente
+    # para estimar la dirección ortogonal al borde:
+    #       phi = arctg(Iy / Ix)   si Ix != 0
+    #       phi = pi/2             si Ix == 0
+    magnitud = [[0.0] * ancho for _ in range(alto)]
+    angulo = [[0.0] * ancho for _ in range(alto)]
+
+    for y in range(alto):
+        for x in range(ancho):
+            ix = 0.0
+            iy = 0.0
+            i = 0
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    v = valor_seguro(suavizada, x + dx, y + dy, ancho, alto)
+                    ix += v * mascara_x[i]
+                    iy += v * mascara_y[i]
+                    i += 1
+
+            magnitud[y][x] = math.sqrt(ix ** 2 + iy ** 2)
+
+            if ix != 0:
+                phi = math.degrees(math.atan(iy / ix))
+            else:
+                phi = 90.0
+
+            # Llevamos el ángulo al rango [0, 180)
+            if phi < 0:
+                phi += 180
+            angulo[y][x] = phi
+
+    return magnitud, angulo
+
+
+def canny_discretizar_angulo(phi):
+    # Dividimos el semicírculo en regiones:
+    #   Zona amarilla (0 a 22.5 y 157.5 a 180) -> 0°
+    #   Zona verde    (22.5 a 67.5)            -> 45°
+    #   Zona azul     (67.5 a 112.5)           -> 90°
+    #   Zona roja     (112.5 a 157.5)          -> 135°
+    if phi < 22.5 or phi >= 157.5:
+        return 0
+    elif phi < 67.5:
+        return 45
+    elif phi < 112.5:
+        return 90
+    else:
+        return 135
+
+
+def canny_supresion_no_maximos(magnitud, angulo, ancho, alto):
+  
+    # Desplazamientos (dx, dy) de los dos vecinos según la dirección discretizada.
+    # Con y hacia abajo, el ángulo 45 (Iy/Ix > 0) apunta hacia (+1, +1).
+    vecinos = {
+        0:   ((1, 0), (-1, 0)),
+        45:  ((1, 1), (-1, -1)),
+        90:  ((0, 1), (0, -1)),
+        135: ((1, -1), (-1, 1)),
+    }
+
+    resultado = [[0.0] * ancho for _ in range(alto)]
+    for y in range(alto):
+        for x in range(ancho):
+            m = magnitud[y][x]
+            if m == 0:
+                continue
+
+            direccion = canny_discretizar_angulo(angulo[y][x])
+            (dx1, dy1), (dx2, dy2) = vecinos[direccion]
+
+            v1 = valor_seguro(magnitud, x + dx1, y + dy1, ancho, alto)
+            v2 = valor_seguro(magnitud, x + dx2, y + dy2, ancho, alto)
+
+            # Si algún vecino tiene mayor magnitud, se borra como borde
+            if v1 > m or v2 > m:
+                resultado[y][x] = 0.0
+            else:
+                resultado[y][x] = m
+    return resultado
+
+
+def canny_histeresis(suprimida, ancho, alto, t1, t2):
+    FUERTE, DEBIL, NADA = 2, 1, 0
+    estado = [[NADA] * ancho for _ in range(alto)]
+    pila = []
+
+    for y in range(alto):
+        for x in range(ancho):
+            m = suprimida[y][x]
+            if m > t2:
+                estado[y][x] = FUERTE
+                pila.append((x, y))
+            elif m >= t1:
+                estado[y][x] = DEBIL
+
+    # Propagamos desde los bordes fuertes hacia los débiles conectados
+    while pila:
+        x, y = pila.pop()
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                xi = x + dx
+                yi = y + dy
+                if 0 <= xi < ancho and 0 <= yi < alto:
+                    if estado[yi][xi] == DEBIL:
+                        estado[yi][xi] = FUERTE
+                        pila.append((xi, yi))
+
+    resultado = Image.new("RGB", (ancho, alto))
+    for y in range(alto):
+        for x in range(ancho):
+            if estado[y][x] == FUERTE:
+                resultado.putpixel((x, y), (255, 255, 255))
+            else:
+                resultado.putpixel((x, y), (0, 0, 0))
+    return resultado
+
+
+def aplicar_canny(img_pil, sigma=1.0, t1=20, t2=50):
+    gris, ancho, alto = convertir_a_gris(img_pil) #
+
+    suavizada = canny_suavizar(gris, ancho, alto, sigma)               
+    magnitud, angulo = canny_gradiente(suavizada, ancho, alto)         
+    suprimida = canny_supresion_no_maximos(magnitud, angulo, ancho, alto)  
+    return canny_histeresis(suprimida, ancho, alto, t1, t2)           
+
+
