@@ -1084,7 +1084,6 @@ def canny_suavizar(gris, ancho, alto, sigma):
         tamano_mascara += 1
     radio = tamano_mascara // 2
 
-    # Construimos la máscara gaussiana normalizada
     mascara = []
     suma_pesos = 0.0
     for dy in range(-radio, radio + 1):
@@ -1115,10 +1114,7 @@ def canny_gradiente(suavizada, ancho, alto):
     mascara_y = [-1, -2, -1,
                   0,  0,  0,
                   1,  2,  1]
-  #Cálculo del ángulo del gradiente
-    # para estimar la dirección ortogonal al borde:
-    #       phi = arctg(Iy / Ix)   si Ix != 0
-    #       phi = pi/2             si Ix == 0
+
     magnitud = [[0.0] * ancho for _ in range(alto)]
     angulo = [[0.0] * ancho for _ in range(alto)]
 
@@ -1313,14 +1309,12 @@ def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde
                     color = (0, 0, 0)
 
             elif modo == "esquinas":
-                # Esquina: el USAN es tan chico que se parece a un cuarto de máscara
                 if n < umbral_esquina:
                     color = (255, 255, 255)
                 else:
                     color = (0, 0, 0)
 
             else:
-                # Las dos cosas juntas, cada una con su color
                 if n < umbral_esquina:
                     color = (255, 0, 0)         # esquina
                 elif n < umbral_borde:
@@ -1331,3 +1325,96 @@ def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde
             resultado.putpixel((x, y), color)
 
     return resultado
+
+
+def binarizar_para_hough(img_pil, umbral=128):
+    gris, ancho, alto = convertir_a_gris(img_pil)
+    pixeles_blancos = []
+    for y in range(alto):
+        for x in range(ancho):
+            if gris[y][x] > umbral:
+                pixeles_blancos.append((x, y))
+    return pixeles_blancos, ancho, alto
+
+
+def acumulador_hough(pixeles_blancos, ancho, alto, n_theta=180, n_r=None):
+    """
+    Construye la matriz acumulador A según: x*cos(theta) + y*sen(theta) = r
+    - theta en [-90°, 90°)
+    - r en [-sqrt(2)*D, sqrt(2)*D] donde D = max(ancho, alto)
+    """
+    D = max(ancho, alto)
+    r_max = math.sqrt(2) * D
+
+    if n_r is None:
+        paso_r = 1.0  # Resolución de 1 píxel para r
+        n_r = int(round(2 * r_max / paso_r)) + 1
+    else:
+        paso_r = (2 * r_max) / (n_r - 1)
+
+    valores_r = [-r_max + i * paso_r for i in range(n_r)]
+    paso_theta = 180.0 / n_theta
+    valores_theta = [-90.0 + j * paso_theta for j in range(n_theta)]
+
+    # Precalculamos funciones trigonométricas para optimizar
+    rads = [math.radians(t) for t in valores_theta]
+    cosenos = [math.cos(rad) for rad in rads]
+    senos = [math.sin(rad) for rad in rads]
+
+    # Inicializar acumulador en 0
+    A = [[0] * n_theta for _ in range(n_r)]
+
+    # Votación
+    for x, y in pixeles_blancos:
+        for j in range(n_theta):
+            r_teorico = x * cosenos[j] + y * senos[j]
+            i = int(round((r_teorico + r_max) / paso_r))
+            if 0 <= i < n_r:
+                A[i][j] += 1
+
+    return A, valores_r, valores_theta
+
+
+def rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=100):
+    n_r = len(valores_r)
+    n_theta = len(valores_theta)
+    rectas = []
+
+    for i in range(n_r):
+        for j in range(n_theta):
+            if A[i][j] >= umbral_votos:
+                rectas.append((valores_r[i], valores_theta[j]))
+
+    return rectas
+
+
+def dibujar_rectas_hough(img_base, rectas, color=(255, 0, 0)):
+    resultado = img_base.convert("RGB").copy()
+    ancho, alto = resultado.size
+    largo = ancho + alto
+
+    for r, theta in rectas:
+        rad = math.radians(theta)
+        cos_t = math.cos(rad)
+        sen_t = math.sin(rad)
+
+        x0 = r * cos_t
+        y0 = r * sen_t
+
+        t = -largo
+        while t <= largo:
+            x = int(round(x0 - t * sen_t))
+            y = int(round(y0 + t * cos_t))
+            if 0 <= x < ancho and 0 <= y < alto:
+                resultado.putpixel((x, y), color)
+            t += 0.5
+
+    return resultado
+
+
+def hough_rectas(img_pil, umbral_votos=100, n_theta=180):
+    bordes = aplicar_canny(img_pil, sigma=1.0, t1=25, t2=60)
+    pixeles_blancos, ancho, alto = binarizar_para_hough(bordes, umbral=128)
+    A, valores_r, valores_theta = acumulador_hough(pixeles_blancos, ancho, alto, n_theta=n_theta)
+    rectas = rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=umbral_votos)
+    return dibujar_rectas_hough(img_pil, rectas)
