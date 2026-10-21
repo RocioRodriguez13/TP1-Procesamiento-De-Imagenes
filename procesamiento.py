@@ -1285,7 +1285,7 @@ def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde
     gris, ancho, alto = convertir_a_gris(img_pil)
     desplazamientos = generar_mascara_susan()
 
-    n_max = len(desplazamientos)                #
+    n_max = len(desplazamientos)                
 
     if umbral_esquina is None:
         umbral_esquina = n_max // 2             # 18  ->  s ≈ 0,5
@@ -1294,35 +1294,26 @@ def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde
 
     mapa_n, mapa_s = calcular_mapa_susan(gris, ancho, alto, t, desplazamientos)
 
-    resultado = Image.new("RGB", (ancho, alto))
+  # Creamos una copia de la imagen original ANTES de entrar al for
+    resultado = img_pil.convert("RGB").copy()
 
     for y in range(alto):
         for x in range(ancho):
-
             n = mapa_n[y][x]
 
             if modo == "bordes":
-                # Borde: zona donde el USAN es más chico que el umbral
                 if n < umbral_borde:
-                    color = (255, 255, 255)
-                else:
-                    color = (0, 0, 0)
+                    resultado.putpixel((x, y), (255, 0, 0))  # Borde rojo sobre la imagen
 
             elif modo == "esquinas":
                 if n < umbral_esquina:
-                    color = (255, 255, 255)
-                else:
-                    color = (0, 0, 0)
+                    resultado.putpixel((x, y), (255, 0, 0))  # Esquina roja sobre la imagen
 
-            else:
+            else:  # "ambos"
                 if n < umbral_esquina:
-                    color = (255, 0, 0)         # esquina
+                    resultado.putpixel((x, y), (255, 0, 0))      # Esquina: Rojo
                 elif n < umbral_borde:
-                    color = (255, 255, 255)     # borde
-                else:
-                    color = (0, 0, 0)           # zona homogénea
-
-            resultado.putpixel((x, y), color)
+                    resultado.putpixel((x, y), (0, 255, 255))    # Borde: Celeste/Cyan
 
     return resultado
 
