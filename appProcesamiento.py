@@ -331,65 +331,69 @@ class AppProcesamiento(tk.Tk):
             plt.show()
 
     def generar_exponencial(self):
-        lambd = simpledialog.askfloat("Exponencial", "Parámetro λ:", minvalue=0.0001, initialvalue=1)
-        cant = simpledialog.askinteger("Exponencial", "Cantidad:", minvalue=1, initialvalue=10000)
-        if lambd is not None and cant:
-            datos = generador_exponencial(lambd, cant)
-            plt.figure(figsize=(8, 4))
-            plt.hist(datos, bins=50, color="indianred", edgecolor="black")
-            plt.title(f"Exponencial (λ={lambd})")
-            plt.tight_layout()
-            plt.show()
+        lambd = simpledialog.askfloat("Exponencial", "Parámetro λ:", minvalue=0.0001, initialvalue=1, parent=self)
+        if lambd is not None:
+            cant = simpledialog.askinteger("Exponencial", "Cantidad:", minvalue=1, initialvalue=10000, parent=self)
+            if cant is not None:
+                datos = generador_exponencial(lambd, cant)
+                plt.figure(figsize=(8, 4))
+                plt.hist(datos, bins=50, color="indianred", edgecolor="black")
+                plt.title(f"Exponencial (λ={lambd})")
+                plt.tight_layout()
+                plt.show()
 
     def aplicar_ruido_gaussiano(self):
         if self.imagen_original is None:
-            messagebox.showwarning("Atención", "Primero cargá una imagen.")
+            messagebox.showwarning("Atención", "Primero cargá una imagen.", parent=self)
             return
-        porc = simpledialog.askfloat("Ruido Gaussiano", "% Píxeles (0-100):", minvalue=0, maxvalue=100, initialvalue=10)
-        mu = simpledialog.askfloat("Ruido Gaussiano", "Media (µ):", initialvalue=0)
-        sigma = simpledialog.askfloat("Ruido Gaussiano", "Desvío (σ):", minvalue=0.0001, initialvalue=25)
-        if porc is not None and mu is not None and sigma is not None:
-            res = procesamiento.contaminar_gaussiano(self.imagen_original, porc, mu, sigma)
-            VentanaResultado(self, f"Ruido Gaussiano ({porc}%)", res)
+        porc = simpledialog.askfloat("Ruido Gaussiano", "% Píxeles (0-100):", minvalue=0, maxvalue=100, initialvalue=10, parent=self)
+        if porc is not None:
+            mu = simpledialog.askfloat("Ruido Gaussiano", "Media (µ):", initialvalue=0, parent=self)
+            if mu is not None:
+                sigma = simpledialog.askfloat("Ruido Gaussiano", "Desvío (σ):", minvalue=0.0001, initialvalue=25, parent=self)
+                if sigma is not None:
+                    res = procesamiento.contaminar_gaussiano(self.imagen_original, porc, mu, sigma)
+                    VentanaResultado(self, f"Ruido Gaussiano ({porc}%)", res)
 
     def aplicar_ruido_exponencial(self):
         if self.imagen_original is None:
-            messagebox.showwarning("Atención", "Primero cargá una imagen.")
+            messagebox.showwarning("Atención", "Primero cargá una imagen.", parent=self)
             return
-        porc = simpledialog.askfloat("Ruido Exponencial", "% Píxeles (0-100):", minvalue=0, maxvalue=100, initialvalue=10)
-        lambd = simpledialog.askfloat("Ruido Exponencial", "Parámetro λ:", minvalue=0.0001, initialvalue=1)
-        if porc is not None and lambd is not None:
-            res = procesamiento.contaminar_exponencial(self.imagen_original, porc, lambd)
-            VentanaResultado(self, f"Ruido Exponencial ({porc}%)", res)
+        porc = simpledialog.askfloat("Ruido Exponencial", "% Píxeles (0-100):", minvalue=0, maxvalue=100, initialvalue=10, parent=self)
+        if porc is not None:
+            lambd = simpledialog.askfloat("Ruido Exponencial", "Parámetro λ:", minvalue=0.0001, initialvalue=1, parent=self)
+            if lambd is not None:
+                res = procesamiento.contaminar_exponencial(self.imagen_original, porc, lambd)
+                VentanaResultado(self, f"Ruido Exponencial ({porc}%)", res)
 
     def aplicar_sal_pimienta(self):
         if self.imagen_original is None:
-            messagebox.showwarning("Atención", "Primero cargá una imagen.")
+            messagebox.showwarning("Atención", "Primero cargá una imagen.", parent=self)
             return
-        densidad = simpledialog.askfloat("Sal y Pimienta", "Densidad (%):", minvalue=0, maxvalue=100, initialvalue=5)
+        densidad = simpledialog.askfloat("Sal y Pimienta", "Densidad (%):", minvalue=0, maxvalue=100, initialvalue=5, parent=self)
         if densidad is not None:
             res = procesamiento.generar_ruido_sal_pimienta(self.imagen_original, densidad)
             VentanaResultado(self, f"Sal y Pimienta ({densidad}%)", res)
 
     def ejecutar_filtro(self, tipo):
         if self.imagen_original is None:
-            messagebox.showwarning("Atención", "Primero cargá una imagen.")
+            messagebox.showwarning("Atención", "Primero cargá una imagen.", parent=self)
             return
 
         if tipo == "media":
-            tam = simpledialog.askinteger("Filtro Media", "Tamaño (impar):", minvalue=3, initialvalue=3)
+            tam = simpledialog.askinteger("Filtro Media", "Tamaño (impar):", minvalue=3, initialvalue=3, parent=self)
             if tam:
                 res = procesamiento.aplicar_filtro_media(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Media ({tam}x{tam})", res)
 
         elif tipo == "mediana":
-            tam = simpledialog.askinteger("Filtro Mediana", "Tamaño (impar):", minvalue=3, initialvalue=3)
+            tam = simpledialog.askinteger("Filtro Mediana", "Tamaño (impar):", minvalue=3, initialvalue=3, parent=self)
             if tam:
                 res = procesamiento.aplicar_filtro_mediana(self.imagen_original, tam)
                 VentanaResultado(self, f"Filtro Mediana ({tam}x{tam})", res)
 
         elif tipo == "mediana_p":
-            tam = simpledialog.askinteger("Mediana Ponderada", "Tamaño (3 o 5):", minvalue=3, maxvalue=5, initialvalue=3)
+            tam = simpledialog.askinteger("Mediana Ponderada", "Tamaño (3 o 5):", minvalue=3, maxvalue=5, initialvalue=3, parent=self)
             if tam == 3:
                 res = procesamiento.aplicar_mediana_ponderada_3x3(self.imagen_original)
                 VentanaResultado(self, "Mediana Ponderada (3x3)", res)
@@ -397,16 +401,16 @@ class AppProcesamiento(tk.Tk):
                 res = procesamiento.aplicar_mediana_ponderada_5x5(self.imagen_original)
                 VentanaResultado(self, "Mediana Ponderada (5x5)", res)
             elif tam is not None:
-                messagebox.showwarning("Atención", "Solo están implementadas las máscaras 3x3 y 5x5.")
+                messagebox.showwarning("Atención", "Solo están implementadas las máscaras 3x3 y 5x5.", parent=self)
 
         elif tipo == "gauss":
-            sigma = simpledialog.askfloat("Filtro Gaussiano", "Valor σ:", minvalue=0.1, initialvalue=1.0)
+            sigma = simpledialog.askfloat("Filtro Gaussiano", "Valor σ:", minvalue=0.1, initialvalue=1.0, parent=self)
             if sigma:
                 res = procesamiento.aplicar_filtro_gaussiano(self.imagen_original, sigma)
                 VentanaResultado(self, f"Filtro Gauss (σ={sigma})", res)
 
         elif tipo == "realce":
-            tam = simpledialog.askinteger("Realce de Bordes", "Tamaño (impar):", minvalue=3, initialvalue=3)
+            tam = simpledialog.askinteger("Realce de Bordes", "Tamaño (impar):", minvalue=3, initialvalue=3, parent=self)
             if tam:
                 res = procesamiento.aplicar_realce_bordes(self.imagen_original, tam)
                 VentanaResultado(self, f"Realce de Bordes ({tam}x{tam})", res)
@@ -424,54 +428,54 @@ class AppProcesamiento(tk.Tk):
             VentanaResultado(self, "Filtro Laplaciano", res)
 
         elif tipo == "laplaciano_pendiente":
-            umbral = simpledialog.askinteger("Laplaciano con Pendiente", "Umbral de borde:", minvalue=0,initialvalue=100)
+            umbral = simpledialog.askinteger("Laplaciano con Pendiente", "Umbral de borde:", minvalue=0, initialvalue=100, parent=self)
             if umbral is not None:
                 res = procesamiento.aplicar_bordes_laplaciano_pendiente(self.imagen_original, umbral)
                 VentanaResultado(self, f"Laplaciano con Pendiente (umbral={umbral})", res)
 
         elif tipo == "marr_hildreth":
-            sigma = simpledialog.askfloat("Marr-Hildreth", "Valor σ:", minvalue=0.1, initialvalue=1.0)
+            sigma = simpledialog.askfloat("Marr-Hildreth", "Valor σ:", minvalue=0.1, initialvalue=1.0, parent=self)
             if sigma:
                 res = procesamiento.aplicar_marr_hildreth(self.imagen_original, sigma)
                 VentanaResultado(self, f"Marr-Hildreth (σ={sigma})", res)
         
         elif tipo == "difusion_iso":
-            iteraciones = simpledialog.askinteger("Difusión Isotrópica", "Iteraciones:", minvalue=1, initialvalue=10)
+            iteraciones = simpledialog.askinteger("Difusión Isotrópica", "Iteraciones:", minvalue=1, initialvalue=10, parent=self)
             if iteraciones:
-                lambd = simpledialog.askfloat("Difusión Isotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15)
+                lambd = simpledialog.askfloat("Difusión Isotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15, parent=self)
                 if lambd:
                     res = procesamiento.aplicar_difusion_isotropica(self.imagen_original, iteraciones, lambd)
                     VentanaResultado(self, f"Difusión Isotrópica (it={iteraciones})", res)
 
         elif tipo == "difusion_aniso":
-            iteraciones = simpledialog.askinteger("Difusión Anisotrópica", "Iteraciones:", minvalue=1, initialvalue=10)
+            iteraciones = simpledialog.askinteger("Difusión Anisotrópica", "Iteraciones:", minvalue=1, initialvalue=10, parent=self)
             if iteraciones:
-                lambd = simpledialog.askfloat("Difusión Anisotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15)
+                lambd = simpledialog.askfloat("Difusión Anisotrópica", "Valor de λ (0-0.25):", minvalue=0.01, maxvalue=0.25, initialvalue=0.15, parent=self)
                 if lambd:
-                    k = simpledialog.askfloat("Difusión Anisotrópica", "Valor de k:", minvalue=1, initialvalue=15)
+                    k = simpledialog.askfloat("Difusión Anisotrópica", "Valor de k:", minvalue=1, initialvalue=15, parent=self)
                     if k:
                         res = procesamiento.aplicar_difusion_anisotropica(self.imagen_original, iteraciones, lambd, k)
                         VentanaResultado(self, f"Difusión Anisotrópica (it={iteraciones}, k={k})", res)
 
         elif tipo == "bilateral":
-            sigmaS = simpledialog.askfloat("Filtro Bilateral", "σ espacial:", minvalue=0.1, initialvalue=3)
+            sigmaS = simpledialog.askfloat("Filtro Bilateral", "σ espacial:", minvalue=0.1, initialvalue=3, parent=self)
             if sigmaS:
-                sigmaR = simpledialog.askfloat("Filtro Bilateral", "σ de intensidad:", minvalue=0.1, initialvalue=30)
+                sigmaR = simpledialog.askfloat("Filtro Bilateral", "σ de intensidad:", minvalue=0.1, initialvalue=30, parent=self)
                 if sigmaR:
-                    tamano = simpledialog.askinteger("Filtro Bilateral", "Tamaño ventana (impar):", minvalue=3, initialvalue=7)
+                    tamano = simpledialog.askinteger("Filtro Bilateral", "Tamaño ventana (impar):", minvalue=3, initialvalue=7, parent=self)
                     if tamano:
                         res = procesamiento.aplicar_filtro_bilateral(self.imagen_original, sigmaS, sigmaR, tamano)
                         VentanaResultado(self, f"Filtro Bilateral (σs={sigmaS}, σr={sigmaR})", res)
 
         elif tipo == "umbral_iterativo":
             umbral = procesamiento.umbral_optimo_iterativo(self.imagen_original)
-            messagebox.showinfo("Umbral Iterativo", f"El umbral óptimo calculado es: {umbral:.2f}")
+            messagebox.showinfo("Umbral Iterativo", f"El umbral óptimo calculado es: {umbral:.2f}", parent=self)
             res = procesamiento.aplicar_umbral(self.imagen_original, umbral)
             VentanaResultado(self, f"Umbral Iterativo (T={umbral:.2f})", res)
 
         elif tipo == "umbral_otsu":
             umbral = procesamiento.metodo_otsu(self.imagen_original)
-            messagebox.showinfo("Umbral Otsu", f"El umbral óptimo de Otsu es: {umbral}")
+            messagebox.showinfo("Umbral Otsu", f"El umbral óptimo de Otsu es: {umbral}", parent=self)
             res = procesamiento.aplicar_umbral(self.imagen_original, umbral)
             VentanaResultado(self, f"Umbral Otsu (T={umbral})", res)
 

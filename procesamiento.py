@@ -1077,12 +1077,53 @@ def aplicar_canny(img_pil, sigma, umbral_bajo, umbral_alto):
     suavizada = aplicar_filtro_gaussiano(img_pil, sigma)
 
     # Máscaras de Sobel
+
+
+def valor_seguro(matriz, x, y, ancho, alto):
+    # Repetimos el borde si nos salimos de la imagen 
+    xi = min(max(x, 0), ancho - 1)
+    yi = min(max(y, 0), alto - 1)
+    return matriz[yi][xi]
+
+
+def canny_suavizar(gris, ancho, alto, sigma):
+    # Convolución con una gaussiana.
+    tamano_mascara = int(2 * sigma + 1)
+    if tamano_mascara % 2 == 0:
+        tamano_mascara += 1
+    radio = tamano_mascara // 2
+
+    mascara = []
+    suma_pesos = 0.0
+    for dy in range(-radio, radio + 1):
+        for dx in range(-radio, radio + 1):
+            peso = math.exp(-(dx ** 2 + dy ** 2) / (2 * sigma ** 2))
+            mascara.append(peso)
+            suma_pesos += peso
+    mascara = [p / suma_pesos for p in mascara]
+
+    suavizada = [[0.0] * ancho for _ in range(alto)]
+    for y in range(alto):
+        for x in range(ancho):
+            suma = 0.0
+            i = 0
+            for dy in range(-radio, radio + 1):
+                for dx in range(-radio, radio + 1):
+                    suma += valor_seguro(gris, x + dx, y + dy, ancho, alto) * mascara[i]
+                    i += 1
+            suavizada[y][x] = suma
+    return suavizada
+
+
+def canny_gradiente(suavizada, ancho, alto):
+   
     mascara_x = [-1, 0, 1,
                  -2, 0, 2,
                  -1, 0, 1]
     mascara_y = [-1, -2, -1,
                   0,  0,  0,
                   1,  2,  1]
+
 
     # Matrices donde guardamos la magnitud y la dirección discretizada de cada píxel
     magnitud = [[0.0] * ancho for _ in range(alto)]
@@ -1171,3 +1212,298 @@ def aplicar_canny(img_pil, sigma, umbral_bajo, umbral_alto):
                 resultado.putpixel((x, y), (255, 255, 255))
 
     return resultado
+
+    magnitud = [[0.0] * ancho for _ in range(alto)]
+    angulo = [[0.0] * ancho for _ in range(alto)]
+
+    for y in range(alto):
+        for x in range(ancho):
+            ix = 0.0
+            iy = 0.0
+            i = 0
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    v = valor_seguro(suavizada, x + dx, y + dy, ancho, alto)
+                    ix += v * mascara_x[i]
+                    iy += v * mascara_y[i]
+                    i += 1
+
+            magnitud[y][x] = math.sqrt(ix ** 2 + iy ** 2)
+
+            if ix != 0:
+                phi = math.degrees(math.atan(iy / ix))
+            else:
+                phi = 90.0
+
+            # Llevamos el ángulo al rango [0, 180)
+            if phi < 0:
+                phi += 180
+            angulo[y][x] = phi
+
+    return magnitud, angulo
+
+
+def canny_discretizar_angulo(phi):
+    # Dividimos el semicírculo en regiones:
+    #   Zona amarilla (0 a 22.5 y 157.5 a 180) -> 0°
+    #   Zona verde    (22.5 a 67.5)            -> 45°
+    #   Zona azul     (67.5 a 112.5)           -> 90°
+    #   Zona roja     (112.5 a 157.5)          -> 135°
+    if phi < 22.5 or phi >= 157.5:
+        return 0
+    elif phi < 67.5:
+        return 45
+    elif phi < 112.5:
+        return 90
+    else:
+        return 135
+
+
+def canny_supresion_no_maximos(magnitud, angulo, ancho, alto):
+  
+    # Desplazamientos (dx, dy) de los dos vecinos según la dirección discretizada.
+    # Con y hacia abajo, el ángulo 45 (Iy/Ix > 0) apunta hacia (+1, +1).
+    vecinos = {
+        0:   ((1, 0), (-1, 0)),
+        45:  ((1, 1), (-1, -1)),
+        90:  ((0, 1), (0, -1)),
+        135: ((1, -1), (-1, 1)),
+    }
+
+    resultado = [[0.0] * ancho for _ in range(alto)]
+    for y in range(alto):
+        for x in range(ancho):
+            m = magnitud[y][x]
+            if m == 0:
+                continue
+
+            direccion = canny_discretizar_angulo(angulo[y][x])
+            (dx1, dy1), (dx2, dy2) = vecinos[direccion]
+
+            v1 = valor_seguro(magnitud, x + dx1, y + dy1, ancho, alto)
+            v2 = valor_seguro(magnitud, x + dx2, y + dy2, ancho, alto)
+
+            # Si algún vecino tiene mayor magnitud, se borra como borde
+            if v1 > m or v2 > m:
+                resultado[y][x] = 0.0
+            else:
+                resultado[y][x] = m
+    return resultado
+
+
+def canny_histeresis(suprimida, ancho, alto, t1, t2):
+    FUERTE, DEBIL, NADA = 2, 1, 0
+    estado = [[NADA] * ancho for _ in range(alto)]
+    pila = []
+
+    for y in range(alto):
+        for x in range(ancho):
+            m = suprimida[y][x]
+            if m > t2:
+                estado[y][x] = FUERTE
+                pila.append((x, y))
+            elif m >= t1:
+                estado[y][x] = DEBIL
+
+    # Propagamos desde los bordes fuertes hacia los débiles conectados
+    while pila:
+        x, y = pila.pop()
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                xi = x + dx
+                yi = y + dy
+                if 0 <= xi < ancho and 0 <= yi < alto:
+                    if estado[yi][xi] == DEBIL:
+                        estado[yi][xi] = FUERTE
+                        pila.append((xi, yi))
+
+    resultado = Image.new("RGB", (ancho, alto))
+    for y in range(alto):
+        for x in range(ancho):
+            if estado[y][x] == FUERTE:
+                resultado.putpixel((x, y), (255, 255, 255))
+            else:
+                resultado.putpixel((x, y), (0, 0, 0))
+    return resultado
+
+
+def aplicar_canny(img_pil, sigma=1.0, t1=20, t2=50):
+    gris, ancho, alto = convertir_a_gris(img_pil) #
+
+    suavizada = canny_suavizar(gris, ancho, alto, sigma)               
+    magnitud, angulo = canny_gradiente(suavizada, ancho, alto)         
+    suprimida = canny_supresion_no_maximos(magnitud, angulo, ancho, alto)  
+    return canny_histeresis(suprimida, ancho, alto, t1, t2)           
+
+
+
+
+def generar_mascara_susan():
+    # Máscara circular de 37 pixels (7 pixels de diámetro, radio ≈ 3,4). 
+    # Son todos los desplazamientos (dx, dy) que cumplen dx² + dy² <= 11,
+    # porque 3,4² ≈ 11,56. Así quedan exactamente 37 posiciones.
+
+    desplazamientos = []
+
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            if dx * dx + dy * dy <= 11:
+                desplazamientos.append((dx, dy))
+
+    return desplazamientos
+
+
+def calcular_mapa_susan(gris, ancho, alto, t, desplazamientos):
+  
+    n_max = len(desplazamientos)        
+
+    mapa_n = [[0] * ancho for _ in range(alto)]
+    mapa_s = [[0.0] * ancho for _ in range(alto)]
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            nucleo = gris[y][x]
+            n = 0
+
+            # Recorremos los 37 pixels de la máscara alrededor del núcleo
+            for dx, dy in desplazamientos:
+                valor = valor_seguro(gris, x + dx, y + dy, ancho, alto)
+                if abs(valor - nucleo) < t:     # c(r, r0) = 1
+                    n += 1
+
+            mapa_n[y][x] = n
+            mapa_s[y][x] = 1 - n / n_max
+
+    return mapa_n, mapa_s
+
+
+def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde=None):
+   
+    gris, ancho, alto = convertir_a_gris(img_pil)
+    desplazamientos = generar_mascara_susan()
+
+    n_max = len(desplazamientos)                
+
+    if umbral_esquina is None:
+        umbral_esquina = n_max // 2             # 18  ->  s ≈ 0,5
+    if umbral_borde is None:
+        umbral_borde = int(3 * n_max / 4)       # 27  ->  s ≈ 0,27
+
+    mapa_n, mapa_s = calcular_mapa_susan(gris, ancho, alto, t, desplazamientos)
+
+  # Creamos una copia de la imagen original ANTES de entrar al for
+    resultado = img_pil.convert("RGB").copy()
+
+    for y in range(alto):
+        for x in range(ancho):
+            n = mapa_n[y][x]
+
+            if modo == "bordes":
+                if n < umbral_borde:
+                    resultado.putpixel((x, y), (255, 0, 0))  # Borde rojo sobre la imagen
+
+            elif modo == "esquinas":
+                if n < umbral_esquina:
+                    resultado.putpixel((x, y), (255, 0, 0))  # Esquina roja sobre la imagen
+
+            else:  # "ambos"
+                if n < umbral_esquina:
+                    resultado.putpixel((x, y), (255, 0, 0))      # Esquina: Rojo
+                elif n < umbral_borde:
+                    resultado.putpixel((x, y), (0, 255, 255))    # Borde: Celeste/Cyan
+
+    return resultado
+
+
+def binarizar_para_hough(img_pil, umbral=128):
+    gris, ancho, alto = convertir_a_gris(img_pil)
+    pixeles_blancos = []
+    for y in range(alto):
+        for x in range(ancho):
+            if gris[y][x] > umbral:
+                pixeles_blancos.append((x, y))
+    return pixeles_blancos, ancho, alto
+
+
+def acumulador_hough(pixeles_blancos, ancho, alto, n_theta=180, n_r=None):
+    """
+    Construye la matriz acumulador A según: x*cos(theta) + y*sen(theta) = r
+    - theta en [-90°, 90°)
+    - r en [-sqrt(2)*D, sqrt(2)*D] donde D = max(ancho, alto)
+    """
+    D = max(ancho, alto)
+    r_max = math.sqrt(2) * D
+
+    if n_r is None:
+        paso_r = 1.0  # Resolución de 1 píxel para r
+        n_r = int(round(2 * r_max / paso_r)) + 1
+    else:
+        paso_r = (2 * r_max) / (n_r - 1)
+
+    valores_r = [-r_max + i * paso_r for i in range(n_r)]
+    paso_theta = 180.0 / n_theta
+    valores_theta = [-90.0 + j * paso_theta for j in range(n_theta)]
+
+    # Precalculamos funciones trigonométricas para optimizar
+    rads = [math.radians(t) for t in valores_theta]
+    cosenos = [math.cos(rad) for rad in rads]
+    senos = [math.sin(rad) for rad in rads]
+
+    # Inicializar acumulador en 0
+    A = [[0] * n_theta for _ in range(n_r)]
+
+    # Votación
+    for x, y in pixeles_blancos:
+        for j in range(n_theta):
+            r_teorico = x * cosenos[j] + y * senos[j]
+            i = int(round((r_teorico + r_max) / paso_r))
+            if 0 <= i < n_r:
+                A[i][j] += 1
+
+    return A, valores_r, valores_theta
+
+
+def rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=100):
+    n_r = len(valores_r)
+    n_theta = len(valores_theta)
+    rectas = []
+
+    for i in range(n_r):
+        for j in range(n_theta):
+            if A[i][j] >= umbral_votos:
+                rectas.append((valores_r[i], valores_theta[j]))
+
+    return rectas
+
+
+def dibujar_rectas_hough(img_base, rectas, color=(255, 0, 0)):
+    resultado = img_base.convert("RGB").copy()
+    ancho, alto = resultado.size
+    largo = ancho + alto
+
+    for r, theta in rectas:
+        rad = math.radians(theta)
+        cos_t = math.cos(rad)
+        sen_t = math.sin(rad)
+
+        x0 = r * cos_t
+        y0 = r * sen_t
+
+        t = -largo
+        while t <= largo:
+            x = int(round(x0 - t * sen_t))
+            y = int(round(y0 + t * cos_t))
+            if 0 <= x < ancho and 0 <= y < alto:
+                resultado.putpixel((x, y), color)
+            t += 0.5
+
+    return resultado
+
+
+def hough_rectas(img_pil, umbral_votos=100, n_theta=180):
+    bordes = aplicar_canny(img_pil, sigma=1.0, t1=25, t2=60)
+    pixeles_blancos, ancho, alto = binarizar_para_hough(bordes, umbral=128)
+    A, valores_r, valores_theta = acumulador_hough(pixeles_blancos, ancho, alto, n_theta=n_theta)
+    rectas = rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=umbral_votos)
+    return dibujar_rectas_hough(img_pil, rectas)
