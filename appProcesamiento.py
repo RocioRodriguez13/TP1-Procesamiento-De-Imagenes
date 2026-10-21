@@ -112,7 +112,12 @@ class AppProcesamiento(tk.Tk):
         self.lbl_info.pack(pady=15, side="bottom")        
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8) 
         ttk.Button(self.panel_botones, text="Detector de Canny",command=lambda: self.ejecutar_filtro("canny")).pack(fill="x", pady=2)
-
+        ttk.Button(self.panel_botones, text="SUSAN - Bordes",
+           command=lambda: self.ejecutar_filtro("susan_bordes")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="SUSAN - Esquinas",
+           command=lambda: self.ejecutar_filtro("susan_esquinas")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="SUSAN - Bordes y Esquinas",
+           command=lambda: self.ejecutar_filtro("susan_ambos")).pack(fill="x", pady=2)
 
 
         self.canvas = tk.Canvas(self, bg="#333333")
@@ -494,6 +499,21 @@ class AppProcesamiento(tk.Tk):
                  VentanaResultado(self, f"Canny (σ={sigma}, t1={t1}, t2={t2})", res)
              elif t2 is not None:
                 messagebox.showwarning("Atención", "t2 debe ser mayor que t1.")
+
+        elif tipo in ("susan_bordes", "susan_esquinas", "susan_ambos"):
+            t = simpledialog.askfloat("SUSAN", "Umbral de contraste t:", minvalue=1, initialvalue=15)
+            if t:
+                if tipo == "susan_bordes":
+                    modo = "bordes"
+                elif tipo == "susan_esquinas":
+                     modo = "esquinas"
+                else:
+                     modo = "ambos"
+
+        res = procesamiento.aplicar_susan(self.imagen_original, t, modo)
+        VentanaResultado(self, f"SUSAN ({modo}, t={t})", res)
+
+        
 
         
 

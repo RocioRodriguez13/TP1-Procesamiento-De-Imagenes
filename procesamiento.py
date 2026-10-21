@@ -1242,3 +1242,92 @@ def aplicar_canny(img_pil, sigma=1.0, t1=20, t2=50):
     return canny_histeresis(suprimida, ancho, alto, t1, t2)           
 
 
+
+
+def generar_mascara_susan():
+    # Máscara circular de 37 pixels (7 pixels de diámetro, radio ≈ 3,4). 
+    # Son todos los desplazamientos (dx, dy) que cumplen dx² + dy² <= 11,
+    # porque 3,4² ≈ 11,56. Así quedan exactamente 37 posiciones.
+
+    desplazamientos = []
+
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            if dx * dx + dy * dy <= 11:
+                desplazamientos.append((dx, dy))
+
+    return desplazamientos
+
+
+def calcular_mapa_susan(gris, ancho, alto, t, desplazamientos):
+  
+    n_max = len(desplazamientos)        
+
+    mapa_n = [[0] * ancho for _ in range(alto)]
+    mapa_s = [[0.0] * ancho for _ in range(alto)]
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            nucleo = gris[y][x]
+            n = 0
+
+            # Recorremos los 37 pixels de la máscara alrededor del núcleo
+            for dx, dy in desplazamientos:
+                valor = valor_seguro(gris, x + dx, y + dy, ancho, alto)
+                if abs(valor - nucleo) < t:     # c(r, r0) = 1
+                    n += 1
+
+            mapa_n[y][x] = n
+            mapa_s[y][x] = 1 - n / n_max
+
+    return mapa_n, mapa_s
+
+
+def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde=None):
+   
+    gris, ancho, alto = convertir_a_gris(img_pil)
+    desplazamientos = generar_mascara_susan()
+
+    n_max = len(desplazamientos)                #
+
+    if umbral_esquina is None:
+        umbral_esquina = n_max // 2             # 18  ->  s ≈ 0,5
+    if umbral_borde is None:
+        umbral_borde = int(3 * n_max / 4)       # 27  ->  s ≈ 0,27
+
+    mapa_n, mapa_s = calcular_mapa_susan(gris, ancho, alto, t, desplazamientos)
+
+    resultado = Image.new("RGB", (ancho, alto))
+
+    for y in range(alto):
+        for x in range(ancho):
+
+            n = mapa_n[y][x]
+
+            if modo == "bordes":
+                # Borde: zona donde el USAN es más chico que el umbral
+                if n < umbral_borde:
+                    color = (255, 255, 255)
+                else:
+                    color = (0, 0, 0)
+
+            elif modo == "esquinas":
+                # Esquina: el USAN es tan chico que se parece a un cuarto de máscara
+                if n < umbral_esquina:
+                    color = (255, 255, 255)
+                else:
+                    color = (0, 0, 0)
+
+            else:
+                # Las dos cosas juntas, cada una con su color
+                if n < umbral_esquina:
+                    color = (255, 0, 0)         # esquina
+                elif n < umbral_borde:
+                    color = (255, 255, 255)     # borde
+                else:
+                    color = (0, 0, 0)           # zona homogénea
+
+            resultado.putpixel((x, y), color)
+
+    return resultado
