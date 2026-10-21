@@ -99,6 +99,7 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Filtro Laplaciano con Pendiente", command=lambda: self.ejecutar_filtro("laplaciano_pendiente")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Marr-Hildreth", command=lambda: self.ejecutar_filtro("marr_hildreth")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Bilateral", command=lambda: self.ejecutar_filtro("bilateral")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Detector de Canny", command=lambda: self.ejecutar_filtro("canny")).pack(fill="x", pady=2)
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8) 
         ttk.Label(self.panel_botones, text="Difusión", font=("Arial", 10, "bold")).pack(pady=2)
         ttk.Button(self.panel_botones, text="Difusión Isotrópica", command=lambda: self.ejecutar_filtro("difusion_iso")).pack(fill="x", pady=2)
@@ -110,7 +111,6 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Segmentación por Bandas", command=lambda: self.ejecutar_filtro("segmentacion_color")).pack(fill="x", pady=2)
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
         self.lbl_info.pack(pady=15, side="bottom")
-
         self.canvas = tk.Canvas(self, bg="#333333")
         self.canvas.pack(side="right", expand=True, fill="both", padx=10, pady=10)
 
@@ -478,6 +478,22 @@ class AppProcesamiento(tk.Tk):
         elif tipo == "segmentacion_color":
             res = procesamiento.segmentacion_color_por_bandas(self.imagen_original)
             VentanaResultado(self, "Segmentación por Bandas", res)
+
+        elif tipo == "canny":
+            sigma = simpledialog.askfloat("Canny", "Valor σ:", minvalue=0.1, initialvalue=1.0)
+            if sigma is None:
+                return
+            umbral_bajo = simpledialog.askinteger("Canny", "Umbral bajo:", minvalue=0, initialvalue=40)
+            if umbral_bajo is None:
+                return
+            umbral_alto = simpledialog.askinteger("Canny", "Umbral alto:", minvalue=0, initialvalue=100)
+            if umbral_alto is None:
+                return
+            if umbral_bajo >= umbral_alto:
+                messagebox.showwarning("Atención", "El umbral bajo tiene que ser menor que el alto.")
+                return
+            res = procesamiento.aplicar_canny(self.imagen_original, sigma, umbral_bajo, umbral_alto)
+            VentanaResultado(self, f"Canny (σ={sigma}, bajo={umbral_bajo}, alto={umbral_alto})", res)
 
 
 

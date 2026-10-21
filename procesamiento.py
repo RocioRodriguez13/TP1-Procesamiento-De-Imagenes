@@ -1067,3 +1067,107 @@ def segmentacion_color_por_bandas(imgPil):
             resultado.putpixel((x, y), (rBin, gBin, bBin))
 
     return resultado
+
+
+def aplicar_canny(img_pil, sigma, umbral_bajo, umbral_alto):
+    img_pil = img_pil.convert("RGB")  # convertimos a RGB
+    ancho, alto = img_pil.size  # Obtenemos el tamaño de la imagen
+
+    # Aplicamos el filtro gaussiano que ya tenemos
+    suavizada = aplicar_filtro_gaussiano(img_pil, sigma)
+
+    # Máscaras de Sobel
+    mascara_x = [-1, 0, 1,
+                 -2, 0, 2,
+                 -1, 0, 1]
+    mascara_y = [-1, -2, -1,
+                  0,  0,  0,
+                  1,  2,  1]
+
+    # Matrices donde guardamos la magnitud y la dirección discretizada de cada píxel
+    magnitud = [[0.0] * ancho for _ in range(alto)]
+    direccion = [[0] * ancho for _ in range(alto)]
+
+    # Calculamos gradiente, magnitud y dirección discretizada
+    for y in range(alto):
+        for x in range(ancho):
+            r, g, b = obtener_ventana(suavizada, x, y, 1)  # Ventana 3x3 por canal
+            vecindad = [(r[i] + g[i] + b[i]) / 3 for i in range(9)]  # Pasamos a gris
+
+            gx = sum(v * m for v, m in zip(vecindad, mascara_x))  # Gradiente horizontal
+            gy = sum(v * m for v, m in zip(vecindad, mascara_y))  # Gradiente vertical
+
+            magnitud[y][x] = math.sqrt(gx**2 + gy**2)  # Gradiente
+
+            # Ángulo del gradiente en grados
+            angulo = math.degrees(math.atan2(gy, gx)) % 180
+
+            # Discretizamos el ángulo a la dirección más cercana
+            if angulo < 22.5 or angulo >= 157.5:
+                direccion[y][x] = 0      # Gradiente horizontal -> vecinos izquierda/derecha
+            elif angulo < 67.5:
+                direccion[y][x] = 45     # Gradiente diagonal -> vecinos abajo-derecha / arriba-izquierda
+            elif angulo < 112.5:
+                direccion[y][x] = 90     # Gradiente vertical -> vecinos arriba/abajo
+            else:
+                direccion[y][x] = 135    # Gradiente diagonal -> vecinos abajo-izquierda / arriba-derecha
+
+    # Supresión de no máximos
+    suprimida = [[0.0] * ancho for _ in range(alto)]
+
+    # Desplazamientos (dx, dy) de los dos vecinos a comparar, según la dirección
+    vecinos_por_direccion = {
+        0:   ((-1, 0), (1, 0)),
+        45:  ((-1, -1), (1, 1)),
+        90:  ((0, -1), (0, 1)),
+        135: ((1, -1), (-1, 1)),
+    }
+
+    for y in range(alto):
+        for x in range(ancho):
+            actual = magnitud[y][x]
+            if actual == 0:
+                continue
+
+            (dx1, dy1), (dx2, dy2) = vecinos_por_direccion[direccion[y][x]]
+
+            # Magnitud de cada vecino (si cae fuera de la imagen, cuenta como 0)
+            x1, y1 = x + dx1, y + dy1
+            x2, y2 = x + dx2, y + dy2
+            vecino1 = magnitud[y1][x1] if 0 <= x1 < ancho and 0 <= y1 < alto else 0
+            vecino2 = magnitud[y2][x2] if 0 <= x2 < ancho and 0 <= y2 < alto else 0
+
+            # Se conserva solo si ningún vecino es estrictamente mayor
+            if actual >= vecino1 and actual >= vecino2:
+                suprimida[y][x] = actual
+
+    # Umbralización con histéresis
+
+    resultado = Image.new("RGB", (ancho, alto))  # Arranca todo negro
+    es_borde = [[False] * ancho for _ in range(alto)]
+    pendientes = []  # Lista con los píxeles fuertes desde los que vamos a expandir
+
+    for y in range(alto):
+        for x in range(ancho):
+            if suprimida[y][x] >= umbral_alto:
+                es_borde[y][x] = True
+                pendientes.append((x, y))
+
+    # Desde cada píxel fuerte, "contagiamos" a los vecinos débiles (conectividad 8)
+    while pendientes:
+        x, y = pendientes.pop()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                xi, yi = x + dx, y + dy
+                if 0 <= xi < ancho and 0 <= yi < alto and not es_borde[yi][xi]:
+                    if suprimida[yi][xi] >= umbral_bajo:
+                        es_borde[yi][xi] = True  # Débil conectado a un borde -> lo aceptamos
+                        pendientes.append((xi, yi))  # Y seguimos expandiendo desde él
+
+    # Pintamos el resultado: blanco si es borde, negro si no
+    for y in range(alto):
+        for x in range(ancho):
+            if es_borde[y][x]:
+                resultado.putpixel((x, y), (255, 255, 255))
+
+    return resultado
