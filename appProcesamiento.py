@@ -100,6 +100,8 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Filtro Marr-Hildreth", command=lambda: self.ejecutar_filtro("marr_hildreth")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Filtro Bilateral", command=lambda: self.ejecutar_filtro("bilateral")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Detector de Canny", command=lambda: self.ejecutar_filtro("canny")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Detector SUSAN", command=lambda: self.ejecutar_filtro("susan")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Tranformada de Hough", command=lambda: self.ejecutar_filtro("hough")).pack(fill="x", pady=2)
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8) 
         ttk.Label(self.panel_botones, text="Difusión", font=("Arial", 10, "bold")).pack(pady=2)
         ttk.Button(self.panel_botones, text="Difusión Isotrópica", command=lambda: self.ejecutar_filtro("difusion_iso")).pack(fill="x", pady=2)
@@ -499,6 +501,31 @@ class AppProcesamiento(tk.Tk):
             res = procesamiento.aplicar_canny(self.imagen_original, sigma, umbral_bajo, umbral_alto)
             VentanaResultado(self, f"Canny (σ={sigma}, bajo={umbral_bajo}, alto={umbral_alto})", res)
 
+        elif tipo == "susan":
+            t = simpledialog.askinteger("SUSAN", "Umbral de similitud t:", minvalue=1, initialvalue=15)
+            if t is None:
+                return
+            modo = simpledialog.askstring("SUSAN", "Modo (bordes / esquinas / ambos):", initialvalue="ambos")
+            if modo is None:
+                return
+            modo = modo.strip().lower()
+            if modo not in ("bordes", "esquinas", "ambos"):
+                messagebox.showwarning("Atención", "El modo tiene que ser bordes, esquinas o ambos.")
+                return
+            res = procesamiento.aplicar_susan(self.imagen_original, t=t, modo=modo)
+            VentanaResultado(self, f"SUSAN (t={t}, modo={modo})", res)
+
+        elif tipo == "hough":
+            umbral_votos = simpledialog.askinteger("Hough", "Umbral de votos (mínimo de píxeles por recta):", minvalue=1, initialvalue=100)
+            if umbral_votos is None:
+                return
+            n_theta = simpledialog.askinteger("Hough", "Cantidad de ángulos θ:", minvalue=10, maxvalue=720, initialvalue=180)
+            if n_theta is None:
+                return
+            res = procesamiento.hough_rectas(self.imagen_original, umbral_votos=umbral_votos, n_theta=n_theta)
+            VentanaResultado(self, f"Hough rectas (votos≥{umbral_votos}, θ={n_theta})", res)
+        
+
 
 
 
@@ -560,7 +587,7 @@ class AppProcesamiento(tk.Tk):
             px = int((single_point[0] - offset_x) / escala)
             py = int((single_point[1] - offset_y) / escala)
             if 0 <= px < iw and 0 <= py < ih:
-                return (px, py)
+                return (px, py)    
             return None
 
         if self.start_x is None or self.end_x is None:

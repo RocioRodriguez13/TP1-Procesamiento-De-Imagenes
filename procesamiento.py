@@ -1027,7 +1027,6 @@ def obtener_canal(imgPil, canal):
 
     return imagenCanal
 
-
 def segmentacion_color_por_bandas(imgPil):
     imgPil = imgPil.convert("RGB")
     ancho, alto = imgPil.size
@@ -1077,53 +1076,12 @@ def aplicar_canny(img_pil, sigma, umbral_bajo, umbral_alto):
     suavizada = aplicar_filtro_gaussiano(img_pil, sigma)
 
     # Máscaras de Sobel
-
-
-def valor_seguro(matriz, x, y, ancho, alto):
-    # Repetimos el borde si nos salimos de la imagen 
-    xi = min(max(x, 0), ancho - 1)
-    yi = min(max(y, 0), alto - 1)
-    return matriz[yi][xi]
-
-
-def canny_suavizar(gris, ancho, alto, sigma):
-    # Convolución con una gaussiana.
-    tamano_mascara = int(2 * sigma + 1)
-    if tamano_mascara % 2 == 0:
-        tamano_mascara += 1
-    radio = tamano_mascara // 2
-
-    mascara = []
-    suma_pesos = 0.0
-    for dy in range(-radio, radio + 1):
-        for dx in range(-radio, radio + 1):
-            peso = math.exp(-(dx ** 2 + dy ** 2) / (2 * sigma ** 2))
-            mascara.append(peso)
-            suma_pesos += peso
-    mascara = [p / suma_pesos for p in mascara]
-
-    suavizada = [[0.0] * ancho for _ in range(alto)]
-    for y in range(alto):
-        for x in range(ancho):
-            suma = 0.0
-            i = 0
-            for dy in range(-radio, radio + 1):
-                for dx in range(-radio, radio + 1):
-                    suma += valor_seguro(gris, x + dx, y + dy, ancho, alto) * mascara[i]
-                    i += 1
-            suavizada[y][x] = suma
-    return suavizada
-
-
-def canny_gradiente(suavizada, ancho, alto):
-   
     mascara_x = [-1, 0, 1,
                  -2, 0, 2,
                  -1, 0, 1]
     mascara_y = [-1, -2, -1,
                   0,  0,  0,
                   1,  2,  1]
-
 
     # Matrices donde guardamos la magnitud y la dirección discretizada de cada píxel
     magnitud = [[0.0] * ancho for _ in range(alto)]
@@ -1183,7 +1141,6 @@ def canny_gradiente(suavizada, ancho, alto):
                 suprimida[y][x] = actual
 
     # Umbralización con histéresis
-
     resultado = Image.new("RGB", (ancho, alto))  # Arranca todo negro
     es_borde = [[False] * ancho for _ in range(alto)]
     pendientes = []  # Lista con los píxeles fuertes desde los que vamos a expandir
@@ -1213,8 +1170,51 @@ def canny_gradiente(suavizada, ancho, alto):
 
     return resultado
 
+def valor_seguro(matriz, x, y, ancho, alto):
+    # Repetimos el borde si nos salimos de la imagen 
+    xi = min(max(x, 0), ancho - 1)
+    yi = min(max(y, 0), alto - 1)
+    return matriz[yi][xi]
+
+
+def canny_suavizar(gris, ancho, alto, sigma):
+    # Convolución con una gaussiana.
+    tamano_mascara = int(2 * sigma + 1)
+    if tamano_mascara % 2 == 0:
+        tamano_mascara += 1
+    radio = tamano_mascara // 2
+
+    mascara = []
+    suma_pesos = 0.0
+    for dy in range(-radio, radio + 1):
+        for dx in range(-radio, radio + 1):
+            peso = math.exp(-(dx ** 2 + dy ** 2) / (2 * sigma ** 2))
+            mascara.append(peso)
+            suma_pesos += peso
+    mascara = [p / suma_pesos for p in mascara]
+
+    suavizada = [[0.0] * ancho for _ in range(alto)]
+    for y in range(alto):
+        for x in range(ancho):
+            suma = 0.0
+            i = 0
+            for dy in range(-radio, radio + 1):
+                for dx in range(-radio, radio + 1):
+                    suma += valor_seguro(gris, x + dx, y + dy, ancho, alto) * mascara[i]
+                    i += 1
+            suavizada[y][x] = suma
+    return suavizada
+
+def canny_gradiente(suavizada, ancho, alto):
     magnitud = [[0.0] * ancho for _ in range(alto)]
     angulo = [[0.0] * ancho for _ in range(alto)]
+
+    mascara_x = [-1, 0, 1,
+                 -2, 0, 2,
+                 -1, 0, 1]
+    mascara_y = [-1, -2, -1,
+                  0,  0,  0,
+                  1,  2,  1]
 
     for y in range(alto):
         for x in range(ancho):
