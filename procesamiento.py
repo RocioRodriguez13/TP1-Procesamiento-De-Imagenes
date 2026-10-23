@@ -1507,3 +1507,126 @@ def hough_rectas(img_pil, umbral_votos=100, n_theta=180):
     A, valores_r, valores_theta = acumulador_hough(pixeles_blancos, ancho, alto, n_theta=n_theta)
     rectas = rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=umbral_votos)
     return dibujar_rectas_hough(img_pil, rectas)
+
+
+def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=200):
+    img_pil = img_pil.convert("RGB")  # Forzamos RGB para trabajar siempre con 3 canales
+    ancho, alto = img_pil.size
+
+    # Guardamos el color de cada píxel en una matriz, para no llamar getpixel una y otra vez
+    colores = [[img_pil.getpixel((x, y)) for x in range(ancho)] for y in range(alto)]
+
+    def color_promedio(rect):
+        # Color promedio de un rectángulo (x1, y1, x2, y2)
+        x1, y1, x2, y2 = rect
+        suma_r = suma_g = suma_b = 0
+        cantidad = 0
+        for y in range(y1, y2):
+            for x in range(x1, x2):
+                r, g, b = colores[y][x]
+                suma_r += r
+                suma_g += g
+                suma_b += b
+                cantidad += 1
+        return (suma_r / cantidad, suma_g / cantidad, suma_b / cantidad)
+
+    # Parámetros que caracterizan al objeto (θ1) y al fondo (θ0): su color promedio
+    theta1 = color_promedio(rect_objeto)
+    theta0 = color_promedio(rect_fondo)
+
+    def distancia(c1, c2):
+        # Norma ||c1 - c2|| entre dos colores
+        return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
+
+    def Fd(x, y):
+        # Fd(x) = log(||θ0 - θ(x)|| / ||θ1 - θ(x)||)
+        # Fd > 0 -> el píxel se parece más al objeto; Fd < 0 -> se parece más al fondo
+        # (el 1e-6 evita dividir por cero o hacer log(0) si el color coincide justo con un parámetro)
+        d0 = max(distancia(theta0, colores[y][x]), 1e-6)
+        d1 = max(distancia(theta1, colores[y][x]), 1e-6)
+        return math.log(d0 / d1)
+
+    def vecinos4(x, y):
+        # Vecindad N4 (arriba, abajo, izquierda, derecha), solo los que están dentro de la imagen
+        resultado = []
+        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            xi, yi = x + dx, y + dy
+            if 0 <= xi < ancho and 0 <= yi < alto:
+                resultado.append((xi, yi))
+        return resultado
+
+    # --- Inicialización de Φ con el rectángulo inicial ---
+    # Φ = 3 fondo, 1 Lout, -1 Lin, -3 objeto (interior)
+    phi = [[3] * ancho for _ in range(alto)]
+    x1, y1, x2, y2 = rect_objeto
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            phi[y][x] = -3  # Todo el rectángulo arranca como objeto
+
+    Lin = set()
+    Lout = set()
+
+    # Lin: píxeles del rectángulo con algún vecino N4 de Φ > 0 (o sea, afuera)
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            if any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y)):
+                phi[y][x] = -1
+                Lin.add((x, y))
+
+    # Lout: píxeles de afuera con algún vecino N4 de Φ < 0 (o sea, adentro).
+    # Solo hace falta mirar una franja de 1 píxel alrededor del rectángulo.
+    for y in range(max(0, y1 - 1), min(alto, y2 + 1)):
+        for x in range(max(0, x1 - 1), min(ancho, x2 + 1)):
+            if phi[y][x] == 3 and any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y)):
+                phi[y][x] = 1
+                Lout.add((x, y))
+
+    # --- Algoritmo: repetir hasta converger o hasta Na iteraciones ---
+    for iteracion in range(max_iteraciones):
+
+        # Paso 1: para cada x en Lout, si Fd(x) > 0 pasa a Lin
+        for (x, y) in list(Lout):  # Recorremos una copia porque Lout va a cambiar
+            if Fd(x, y) > 0:
+                Lout.remove((x, y))
+                Lin.add((x, y))
+                phi[y][x] = -1
+                # Los vecinos que eran fondo pasan a ser el nuevo Lout
+                for (xx, yy) in vecinos4(x, y):
+                    if phi[yy][xx] == 3:
+                        Lout.add((xx, yy))
+                        phi[yy][xx] = 1
+
+        # Paso 2: los píxeles de Lin que quedaron sin vecinos de afuera pasan a ser interior
+        for (x, y) in list(Lin):
+            if not any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y)):
+                Lin.remove((x, y))
+                phi[y][x] = -3
+
+        # Paso 3: para cada x en Lin, si Fd(x) < 0 pasa a Lout
+        for (x, y) in list(Lin):
+            if Fd(x, y) < 0:
+                Lin.remove((x, y))
+                Lout.add((x, y))
+                phi[y][x] = 1
+                # Los vecinos que eran interior pasan a ser el nuevo Lin
+                for (xx, yy) in vecinos4(x, y):
+                    if phi[yy][xx] == -3:
+                        Lin.add((xx, yy))
+                        phi[yy][xx] = -1
+
+        # Paso 4: los píxeles de Lout que quedaron sin vecinos de adentro pasan a ser fondo
+        for (x, y) in list(Lout):
+            if not any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y)):
+                Lout.remove((x, y))
+                phi[y][x] = 3
+
+        # Criterio de parada: Fd < 0 en todo Lout y Fd > 0 en todo Lin
+        if all(Fd(x, y) < 0 for (x, y) in Lout) and all(Fd(x, y) > 0 for (x, y) in Lin):
+            break
+
+    # Dibujamos el contorno (la lista Lin) en verde sobre la imagen original
+    resultado = img_pil.copy()
+    for (x, y) in Lin:
+        resultado.putpixel((x, y), (0, 255, 0))
+
+    return resultado

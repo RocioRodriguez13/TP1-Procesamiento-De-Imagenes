@@ -25,6 +25,10 @@ class AppProcesamiento(tk.Tk):
         self.end_x = None
         self.end_y = None
 
+        # En __init__
+        self.rect_objeto = None
+        self.rect_fondo = None
+
         # Contenedor con scroll para el panel de botones
         self.panel_container = ttk.Frame(self)
         self.panel_container.pack(side="left", fill="y")
@@ -106,6 +110,13 @@ class AppProcesamiento(tk.Tk):
         ttk.Label(self.panel_botones, text="Difusión", font=("Arial", 10, "bold")).pack(pady=2)
         ttk.Button(self.panel_botones, text="Difusión Isotrópica", command=lambda: self.ejecutar_filtro("difusion_iso")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Difusión Anisotrópica", command=lambda: self.ejecutar_filtro("difusion_aniso")).pack(fill="x", pady=2)
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
+
+        ttk.Label(self.panel_botones, text="contornos Activos", font=("Arial", 10, "bold")).pack(pady=2)
+        ttk.Button(self.panel_botones, text="Marcar objeto (θ1)", command=self.marcar_objeto).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Marcar fondo (θ0)", command=self.marcar_fondo).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Contornos Activos", command=lambda: self.ejecutar_filtro("contornos_activos")).pack(fill="x", pady=2)
+
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
         ttk.Label(self.panel_botones, text="Umbralización Automática", font=("Arial", 10, "bold")).pack(pady=2)
         ttk.Button(self.panel_botones, text="Umbral Iterativo", command=lambda: self.ejecutar_filtro("umbral_iterativo")).pack(fill="x", pady=2)
@@ -524,6 +535,16 @@ class AppProcesamiento(tk.Tk):
                 return
             res = procesamiento.hough_rectas(self.imagen_original, umbral_votos=umbral_votos, n_theta=n_theta)
             VentanaResultado(self, f"Hough rectas (votos≥{umbral_votos}, θ={n_theta})", res)
+
+        elif tipo == "contornos_activos":
+            if self.rect_objeto is None or self.rect_fondo is None:
+                messagebox.showwarning("Atención", "Marcá primero el objeto y el fondo.")
+                return
+            na = simpledialog.askinteger("Contornos Activos", "Iteraciones máximas (Na):", minvalue=1, initialvalue=200)
+            if na is None:
+                return
+            res = procesamiento.aplicar_contornos_activos(self.imagen_original, self.rect_objeto, self.rect_fondo, na)
+            VentanaResultado(self, f"Contornos Activos (Na={na})", res)
         
 
 
@@ -613,3 +634,19 @@ class AppProcesamiento(tk.Tk):
         self.imagen_tk = ImageTk.PhotoImage(img_copia)
         self.canvas.delete("all")
         self.canvas.create_image(w // 2, h // 2, image=self.imagen_tk, anchor="center")
+
+    def marcar_objeto(self):
+        box = self.obtener_coordenadas_imagen()
+        if not box:
+            messagebox.showwarning("Atención", "Seleccioná primero un rectángulo dentro del objeto.")
+            return
+        self.rect_objeto = box
+        self.lbl_info.config(text="Rectángulo del objeto guardado.")
+
+    def marcar_fondo(self):
+        box = self.obtener_coordenadas_imagen()
+        if not box:
+            messagebox.showwarning("Atención", "Seleccioná primero un rectángulo sobre el fondo.")
+            return
+        self.rect_fondo = box
+        self.lbl_info.config(text="Rectángulo del fondo guardado.")
