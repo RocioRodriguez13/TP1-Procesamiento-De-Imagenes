@@ -1630,3 +1630,143 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
         resultado.putpixel((x, y), (0, 255, 0))
 
     return resultado
+
+
+def matriz_de_colores(img_pil):
+    img_pil = img_pil.convert("RGB")
+    ancho, alto = img_pil.size
+    return [[img_pil.getpixel((x, y)) for x in range(ancho)] for y in range(alto)]
+
+
+def color_promedio(colores, rect):
+    # Color promedio de un rectángulo (x1, y1, x2, y2)
+    x1, y1, x2, y2 = rect
+    suma_r = suma_g = suma_b = 0
+    cantidad = 0
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            r, g, b = colores[y][x]
+            suma_r += r
+            suma_g += g
+            suma_b += b
+            cantidad += 1
+    return (suma_r / cantidad, suma_g / cantidad, suma_b / cantidad)
+
+
+def calcular_fd(color, theta0, theta1):
+    # Fd = log(||θ0 - θ(x)|| / ||θ1 - θ(x)||); > 0 objeto, < 0 fondo
+    d0 = max(math.sqrt(sum((a - b) ** 2 for a, b in zip(theta0, color))), 1e-6)
+    d1 = max(math.sqrt(sum((a - b) ** 2 for a, b in zip(theta1, color))), 1e-6)
+    return math.log(d0 / d1)
+
+
+def vecinos4(x, y, ancho, alto):
+    # Vecindad N4 dentro de la imagen
+    resultado = []
+    for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+        xi, yi = x + dx, y + dy
+        if 0 <= xi < ancho and 0 <= yi < alto:
+            resultado.append((xi, yi))
+    return resultado
+
+
+def iniciar_contorno(ancho, alto, rect_objeto):
+    # Arma Φ, Lin y Lout a partir del rectángulo inicial
+    phi = [[3] * ancho for _ in range(alto)]
+    x1, y1, x2, y2 = rect_objeto
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            phi[y][x] = -3
+
+    Lin = set()
+    Lout = set()
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            if any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y, ancho, alto)):
+                phi[y][x] = -1
+                Lin.add((x, y))
+    for y in range(max(0, y1 - 1), min(alto, y2 + 1)):
+        for x in range(max(0, x1 - 1), min(ancho, x2 + 1)):
+            if phi[y][x] == 3 and any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y, ancho, alto)):
+                phi[y][x] = 1
+                Lout.add((x, y))
+    return phi, Lin, Lout
+
+
+def evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1, max_iteraciones):
+    # Modifica phi, Lin y Lout "in place": al terminar quedan listos para el próximo cuadro
+    alto = len(colores)
+    ancho = len(colores[0])
+
+    for iteracion in range(max_iteraciones):
+
+        # Paso 1: x en Lout con Fd > 0 pasa a Lin
+        for (x, y) in list(Lout):
+            if calcular_fd(colores[y][x], theta0, theta1) > 0:
+                Lout.remove((x, y))
+                Lin.add((x, y))
+                phi[y][x] = -1
+                for (xx, yy) in vecinos4(x, y, ancho, alto):
+                    if phi[yy][xx] == 3:
+                        Lout.add((xx, yy))
+                        phi[yy][xx] = 1
+
+        # Paso 2: los de Lin sin vecinos de afuera pasan a interior
+        for (x, y) in list(Lin):
+            if not any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y, ancho, alto)):
+                Lin.remove((x, y))
+                phi[y][x] = -3
+
+        # Paso 3: x en Lin con Fd < 0 pasa a Lout
+        for (x, y) in list(Lin):
+            if calcular_fd(colores[y][x], theta0, theta1) < 0:
+                Lin.remove((x, y))
+                Lout.add((x, y))
+                phi[y][x] = 1
+                for (xx, yy) in vecinos4(x, y, ancho, alto):
+                    if phi[yy][xx] == -3:
+                        Lin.add((xx, yy))
+                        phi[yy][xx] = -1
+
+        # Paso 4: los de Lout sin vecinos de adentro pasan a fondo
+        for (x, y) in list(Lout):
+            if not any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y, ancho, alto)):
+                Lout.remove((x, y))
+                phi[y][x] = 3
+
+        # Criterio de parada
+        if all(calcular_fd(colores[y][x], theta0, theta1) < 0 for (x, y) in Lout) and \
+           all(calcular_fd(colores[y][x], theta0, theta1) > 0 for (x, y) in Lin):
+            break
+
+
+def dibujar_contorno(img_pil, Lin):
+    resultado = img_pil.convert("RGB").copy()
+    for (x, y) in Lin:
+        resultado.putpixel((x, y), (0, 255, 0))
+    return resultado
+
+
+def seguimiento_objeto(frames, rect_objeto, rect_fondo, max_iteraciones=100):
+    ancho, alto = frames[0].size
+
+    # θ0 y θ1 se calculan UNA vez, con los rectángulos del primer cuadro
+    colores = matriz_de_colores(frames[0])
+    theta0 = color_promedio(colores, rect_fondo)
+    theta1 = color_promedio(colores, rect_objeto)
+
+    # La curva inicial del primer cuadro es el rectángulo
+    phi, Lin, Lout = iniciar_contorno(ancho, alto, rect_objeto)
+
+    resultados = []
+    for frame in frames:
+        colores = matriz_de_colores(frame)
+        # phi, Lin y Lout vienen del cuadro anterior: esa es la curva inicial de este cuadro
+        evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1, max_iteraciones)
+        resultados.append(dibujar_contorno(frame, Lin))
+    return resultados
+
+
+def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=200):
+    # Para una sola imagen: el botón que ya tenías sigue funcionando igual
+    return seguimiento_objeto([img_pil], rect_objeto, rect_fondo, max_iteraciones)[0]

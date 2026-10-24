@@ -3,8 +3,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
+import os
+import re
 
-# Importaciones de los demás móduloss
+# Importaciones de los demás módulos
 import procesamiento
 from generadores import generador_gaussiano, generador_exponencial
 from ventana_resultado import VentanaResultado
@@ -116,6 +118,7 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Marcar objeto (θ1)", command=self.marcar_objeto).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Marcar fondo (θ0)", command=self.marcar_fondo).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Contornos Activos", command=lambda: self.ejecutar_filtro("contornos_activos")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Seguimiento en secuencia", command=self.seguimiento_secuencia).pack(fill="x", pady=2)
 
         ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
         ttk.Label(self.panel_botones, text="Umbralización Automática", font=("Arial", 10, "bold")).pack(pady=2)
@@ -650,3 +653,41 @@ class AppProcesamiento(tk.Tk):
             return
         self.rect_fondo = box
         self.lbl_info.config(text="Rectángulo del fondo guardado.")
+
+
+    def seguimiento_secuencia(self):
+        if self.imagen_original is None or self.rect_objeto is None or self.rect_fondo is None:
+            messagebox.showwarning("Atención", "Cargá el primer cuadro y marcá el objeto y el fondo.")
+            return
+
+        carpeta = filedialog.askdirectory(title="Carpeta con los cuadros")
+        if not carpeta:
+            return
+
+        # Ordenamos "natural": frame2 antes que frame10
+        extensiones = (".png", ".jpg", ".jpeg", ".bmp", ".pgm", ".ppm", ".tif", ".tiff")
+        nombres = [n for n in os.listdir(carpeta) if n.lower().endswith(extensiones)]
+        nombres.sort(key=lambda n: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", n)])
+        if not nombres:
+            messagebox.showwarning("Atención", "No encontré imágenes en esa carpeta.")
+            return
+
+        frames = [Image.open(os.path.join(carpeta, n)).convert("RGB") for n in nombres]
+        if frames[0].size != self.imagen_original.size:
+            messagebox.showwarning("Atención", "El primer cuadro tiene que ser la imagen que cargaste y marcaste.")
+            return
+
+        na = simpledialog.askinteger("Seguimiento", "Iteraciones máximas por cuadro (Na):", minvalue=1, initialvalue=100)
+        if na is None:
+            return
+
+        resultados = procesamiento.seguimiento_objeto(frames, self.rect_objeto, self.rect_fondo, na)
+
+        # Guardamos cada cuadro con su contorno (sirve para armar la presentación) y los reproducimos
+        salida = os.path.join(carpeta, "resultado")
+        os.makedirs(salida, exist_ok=True)
+        for nombre, res in zip(nombres, resultados):
+            res.save(os.path.join(salida, os.path.splitext(nombre)[0] + ".png"))
+            self.mostrar_imagen(res)
+            self.update()
+            self.after(100)  # pausa de 100 ms entre cuadros
