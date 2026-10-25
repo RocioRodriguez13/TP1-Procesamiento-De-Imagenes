@@ -1354,64 +1354,55 @@ def generar_mascara_susan():
 
 
 def calcular_mapa_susan(gris, ancho, alto, t, desplazamientos):
-  
-    n_max = len(desplazamientos)        
-
-    mapa_n = [[0] * ancho for _ in range(alto)]
+    total = len(desplazamientos)  # 37 pixels en la máscara circular
     mapa_s = [[0.0] * ancho for _ in range(alto)]
 
     for y in range(alto):
         for x in range(ancho):
-
             nucleo = gris[y][x]
             n = 0
 
-            # Recorremos los 37 pixels de la máscara alrededor del núcleo
             for dx, dy in desplazamientos:
+                if dx == 0 and dy == 0:
+                    continue  # el núcleo no se cuenta
                 valor = valor_seguro(gris, x + dx, y + dy, ancho, alto)
                 if abs(valor - nucleo) < t:     # c(r, r0) = 1
                     n += 1
 
-            mapa_n[y][x] = n
-            mapa_s[y][x] = 1 - n / n_max
+            mapa_s[y][x] = 1 - n / total        # s(r0) = 1 - n(r0)/37
 
-    return mapa_n, mapa_s
+    return mapa_s
 
 
-def aplicar_susan(img_pil, t=15, modo="ambos", umbral_esquina=None, umbral_borde=None):
-   
+def aplicar_susan(img_pil, t=15, modo="ambos", tolerancia=0.1):
     gris, ancho, alto = convertir_a_gris(img_pil)
     desplazamientos = generar_mascara_susan()
 
-    n_max = len(desplazamientos)                
+    mapa_s = calcular_mapa_susan(gris, ancho, alto, t, desplazamientos)
 
-    if umbral_esquina is None:
-        umbral_esquina = n_max // 2             # 18  ->  s ≈ 0,5
-    if umbral_borde is None:
-        umbral_borde = int(3 * n_max / 4)       # 27  ->  s ≈ 0,27
-
-    mapa_n, mapa_s = calcular_mapa_susan(gris, ancho, alto, t, desplazamientos)
-
-  # Creamos una copia de la imagen original ANTES de entrar al for
     resultado = img_pil.convert("RGB").copy()
 
     for y in range(alto):
         for x in range(ancho):
-            n = mapa_n[y][x]
+            s = mapa_s[y][x]
+
+            es_esquina = abs(s - 0.95) <= tolerancia   # s ≈ 0,75 -> punto de esquina
+            es_borde = abs(s - 0.5) <= tolerancia      # s ≈ 0,5  -> borde
+            # s ≈ 0 -> ni borde ni esquina: no se pinta
 
             if modo == "bordes":
-                if n < umbral_borde:
-                    resultado.putpixel((x, y), (255, 0, 0))  # Borde rojo sobre la imagen
+                if es_borde:
+                    resultado.putpixel((x, y), (255, 0, 0))
 
             elif modo == "esquinas":
-                if n < umbral_esquina:
-                    resultado.putpixel((x, y), (255, 0, 0))  # Esquina roja sobre la imagen
+                if es_esquina:
+                    resultado.putpixel((x, y), (0, 255, 255))
 
             else:  # "ambos"
-                if n < umbral_esquina:
-                    resultado.putpixel((x, y), (255, 0, 0))      # Esquina: Rojo
-                elif n < umbral_borde:
-                    resultado.putpixel((x, y), (0, 255, 255))    # Borde: Celeste/Cyan
+                if es_esquina:
+                    resultado.putpixel((x, y), (255, 0, 0))      # Esquina: rojo
+                elif es_borde:
+                    resultado.putpixel((x, y), (0, 255, 255))    # Borde: cyan
 
     return resultado
 
@@ -1693,12 +1684,12 @@ def iniciar_contorno(ancho, alto, rect_objeto):
     return phi, Lin, Lout
 
 
-def evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1, max_iteraciones):
+def evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1):
     # Modifica phi, Lin y Lout "in place": al terminar quedan listos para el próximo cuadro
     alto = len(colores)
     ancho = len(colores[0])
 
-    for iteracion in range(max_iteraciones):
+    for iteracion in range(min(ancho, alto) // 2):
 
         # Paso 1: x en Lout con Fd > 0 pasa a Lin
         for (x, y) in list(Lout):
@@ -1747,7 +1738,7 @@ def dibujar_contorno(img_pil, Lin):
     return resultado
 
 
-def seguimiento_objeto(frames, rect_objeto, rect_fondo, max_iteraciones=100):
+def seguimiento_objeto(frames, rect_objeto, rect_fondo):
     ancho, alto = frames[0].size
 
     # θ0 y θ1 se calculan UNA vez, con los rectángulos del primer cuadro
@@ -1762,11 +1753,11 @@ def seguimiento_objeto(frames, rect_objeto, rect_fondo, max_iteraciones=100):
     for frame in frames:
         colores = matriz_de_colores(frame)
         # phi, Lin y Lout vienen del cuadro anterior: esa es la curva inicial de este cuadro
-        evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1, max_iteraciones)
+        evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1)
         resultados.append(dibujar_contorno(frame, Lin))
     return resultados
 
 
-def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=200):
+def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo):
     # Para una sola imagen: el botón que ya tenías sigue funcionando igual
-    return seguimiento_objeto([img_pil], rect_objeto, rect_fondo, max_iteraciones)[0]
+    return seguimiento_objeto([img_pil], rect_objeto, rect_fondo)[0]

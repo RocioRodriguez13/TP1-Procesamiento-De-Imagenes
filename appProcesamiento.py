@@ -543,11 +543,8 @@ class AppProcesamiento(tk.Tk):
             if self.rect_objeto is None or self.rect_fondo is None:
                 messagebox.showwarning("Atención", "Marcá primero el objeto y el fondo.")
                 return
-            na = simpledialog.askinteger("Contornos Activos", "Iteraciones máximas (Na):", minvalue=1, initialvalue=200)
-            if na is None:
-                return
-            res = procesamiento.aplicar_contornos_activos(self.imagen_original, self.rect_objeto, self.rect_fondo, na)
-            VentanaResultado(self, f"Contornos Activos (Na={na})", res)
+            res = procesamiento.aplicar_contornos_activos(self.imagen_original, self.rect_objeto, self.rect_fondo)
+            VentanaResultado(self, f"Contornos Activos", res)
         
 
 
@@ -676,12 +673,7 @@ class AppProcesamiento(tk.Tk):
         if frames[0].size != self.imagen_original.size:
             messagebox.showwarning("Atención", "El primer cuadro tiene que ser la imagen que cargaste y marcaste.")
             return
-
-        na = simpledialog.askinteger("Seguimiento", "Iteraciones máximas por cuadro (Na):", minvalue=1, initialvalue=100)
-        if na is None:
-            return
-
-        resultados = procesamiento.seguimiento_objeto(frames, self.rect_objeto, self.rect_fondo, na)
+        resultados = procesamiento.seguimiento_objeto(frames, self.rect_objeto, self.rect_fondo)
 
         # Guardamos cada cuadro con su contorno (sirve para armar la presentación) y los reproducimos
         salida = os.path.join(carpeta, "resultado")
