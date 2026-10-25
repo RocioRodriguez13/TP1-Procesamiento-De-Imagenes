@@ -683,3 +683,12 @@ class AppProcesamiento(tk.Tk):
             self.mostrar_imagen(res)
             self.update()
             self.after(100)  # pausa de 100 ms entre cuadros
+
+        # Guardamos también un GIF animado con todos los cuadros
+        resultados[0].save(
+            os.path.join(salida, "seguimiento.gif"),
+            save_all=True,
+            append_images=resultados[1:],
+            duration=100,   # milisegundos por cuadro
+            loop=0          # 0 = se repite para siempre
+        )
