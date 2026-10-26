@@ -1493,7 +1493,7 @@ def dibujar_rectas_hough(img_base, rectas, color=(255, 0, 0)):
 
 
 def hough_rectas(img_pil, umbral_votos=100, n_theta=180):
-    bordes = aplicar_canny(img_pil, sigma=1.0, t1=25, t2=60)
+    bordes = aplicar_canny(img_pil, sigma=1.0, t1=50, t2=150)
     pixeles_blancos, ancho, alto = binarizar_para_hough(bordes, umbral=128)
     A, valores_r, valores_theta = acumulador_hough(pixeles_blancos, ancho, alto, n_theta=n_theta)
     rectas = rectas_mas_votadas(A, valores_r, valores_theta, umbral_votos=umbral_votos)
