@@ -1386,7 +1386,7 @@ def aplicar_susan(img_pil, t=15, modo="ambos", tolerancia=0.1):
         for x in range(ancho):
             s = mapa_s[y][x]
 
-            es_esquina = abs(s - 0.95) <= tolerancia   # s ≈ 0,75 -> punto de esquina
+            es_esquina = abs(s - 0.85) <= tolerancia   # s ≈ 0,75 -> punto de esquina
             es_borde = abs(s - 0.5) <= tolerancia      # s ≈ 0,5  -> borde
             # s ≈ 0 -> ni borde ni esquina: no se pinta
 
@@ -1572,7 +1572,7 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
                 phi[y][x] = 1
                 Lout.add((x, y))
 
-    # --- Algoritmo: repetir hasta converger o hasta Na iteraciones ---
+    # repetir hasta converger o hasta Na iteraciones
     for iteracion in range(max_iteraciones):
 
         # Paso 1: para cada x en Lout, si Fd(x) > 0 pasa a Lin
