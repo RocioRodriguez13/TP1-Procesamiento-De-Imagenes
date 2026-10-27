@@ -1759,5 +1759,4 @@ def seguimiento_objeto(frames, rect_objeto, rect_fondo):
 
 
 def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo):
-    # Para una sola imagen: el botón que ya tenías sigue funcionando igual
     return seguimiento_objeto([img_pil], rect_objeto, rect_fondo)[0]
