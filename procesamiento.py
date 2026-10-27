@@ -1386,7 +1386,7 @@ def aplicar_susan(img_pil, t=15, modo="ambos", tolerancia=0.1):
         for x in range(ancho):
             s = mapa_s[y][x]
 
-            es_esquina = abs(s - 0.85) <= tolerancia   # s ≈ 0,75 -> punto de esquina
+            es_esquina = abs(s - 0.95) <= tolerancia   # s ≈ 0,75 -> punto de esquina
             es_borde = abs(s - 0.5) <= tolerancia      # s ≈ 0,5  -> borde
             # s ≈ 0 -> ni borde ni esquina: no se pinta
 
@@ -1546,7 +1546,7 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
                 resultado.append((xi, yi))
         return resultado
 
-    # --- Inicialización de Φ con el rectángulo inicial ---
+    # Inicialización de Φ con el rectángulo inicial
     # Φ = 3 fondo, 1 Lout, -1 Lin, -3 objeto (interior)
     phi = [[3] * ancho for _ in range(alto)]
     x1, y1, x2, y2 = rect_objeto
@@ -1557,7 +1557,7 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
     Lin = set()
     Lout = set()
 
-    # Lin: píxeles del rectángulo con algún vecino N4 de Φ > 0 (o sea, afuera)
+    # Lin: píxeles del rectángulo con algún vecino N4 de Φ > 0 (o sea afuera)
     for y in range(y1, y2):
         for x in range(x1, x2):
             if any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y)):
@@ -1587,13 +1587,13 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
                         Lout.add((xx, yy))
                         phi[yy][xx] = 1
 
-        # Paso 2: los píxeles de Lin que quedaron sin vecinos de afuera pasan a ser interior
+        # los píxeles de Lin que quedaron sin vecinos de afuera pasan a ser interior
         for (x, y) in list(Lin):
             if not any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y)):
                 Lin.remove((x, y))
                 phi[y][x] = -3
 
-        # Paso 3: para cada x en Lin, si Fd(x) < 0 pasa a Lout
+        # para cada x en Lin, si Fd(x) < 0 pasa a Lout
         for (x, y) in list(Lin):
             if Fd(x, y) < 0:
                 Lin.remove((x, y))
@@ -1605,7 +1605,7 @@ def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo, max_iteraciones=
                         Lin.add((xx, yy))
                         phi[yy][xx] = -1
 
-        # Paso 4: los píxeles de Lout que quedaron sin vecinos de adentro pasan a ser fondo
+        # los píxeles de Lout que quedaron sin vecinos de adentro pasan a ser fondo
         for (x, y) in list(Lout):
             if not any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y)):
                 Lout.remove((x, y))
@@ -1702,13 +1702,13 @@ def evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1):
                         Lout.add((xx, yy))
                         phi[yy][xx] = 1
 
-        # Paso 2: los de Lin sin vecinos de afuera pasan a interior
+        # los de Lin sin vecinos de afuera pasan a interior
         for (x, y) in list(Lin):
             if not any(phi[yy][xx] > 0 for xx, yy in vecinos4(x, y, ancho, alto)):
                 Lin.remove((x, y))
                 phi[y][x] = -3
 
-        # Paso 3: x en Lin con Fd < 0 pasa a Lout
+        # x en Lin con Fd < 0 pasa a Lout
         for (x, y) in list(Lin):
             if calcular_fd(colores[y][x], theta0, theta1) < 0:
                 Lin.remove((x, y))
@@ -1719,7 +1719,7 @@ def evolucionar_contorno(colores, phi, Lin, Lout, theta0, theta1):
                         Lin.add((xx, yy))
                         phi[yy][xx] = -1
 
-        # Paso 4: los de Lout sin vecinos de adentro pasan a fondo
+        # los de Lout sin vecinos de adentro pasan a fondo
         for (x, y) in list(Lout):
             if not any(phi[yy][xx] < 0 for xx, yy in vecinos4(x, y, ancho, alto)):
                 Lout.remove((x, y))
@@ -1741,7 +1741,7 @@ def dibujar_contorno(img_pil, Lin):
 def seguimiento_objeto(frames, rect_objeto, rect_fondo):
     ancho, alto = frames[0].size
 
-    # θ0 y θ1 se calculan UNA vez, con los rectángulos del primer cuadro
+    # θ0 y θ1 se calculan una vez, con los rectángulos del primer cuadro
     colores = matriz_de_colores(frames[0])
     theta0 = color_promedio(colores, rect_fondo)
     theta1 = color_promedio(colores, rect_objeto)
