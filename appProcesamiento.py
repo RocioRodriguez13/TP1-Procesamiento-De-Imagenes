@@ -125,6 +125,10 @@ class AppProcesamiento(tk.Tk):
         ttk.Button(self.panel_botones, text="Umbral Iterativo", command=lambda: self.ejecutar_filtro("umbral_iterativo")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Umbral Otsu", command=lambda: self.ejecutar_filtro("umbral_otsu")).pack(fill="x", pady=2)
         ttk.Button(self.panel_botones, text="Segmentación por Bandas", command=lambda: self.ejecutar_filtro("segmentacion_color")).pack(fill="x", pady=2)
+        ttk.Separator(self.panel_botones, orient="horizontal").pack(fill="x", pady=8)
+        ttk.Label(self.panel_botones, text="Reconocimiento SIFT", font=("Arial", 10, "bold")).pack(pady=2)
+        ttk.Button(self.panel_botones, text="Comparar con SIFT", command=lambda: self.ejecutar_filtro("sift")).pack(fill="x", pady=2)
+        ttk.Button(self.panel_botones, text="Visualizar Keypoints SIFT", command=lambda: self.ejecutar_filtro("sift_keypoints")).pack(fill="x", pady=2)
         self.lbl_info = ttk.Label(self.panel_botones, text="Haz clic o arrastra sobre la imagen.", wraplength=180)
         self.lbl_info.pack(pady=15, side="bottom")
         self.canvas = tk.Canvas(self, bg="#333333")
@@ -545,6 +549,35 @@ class AppProcesamiento(tk.Tk):
                 return
             res = procesamiento.aplicar_contornos_activos(self.imagen_original, self.rect_objeto, self.rect_fondo)
             VentanaResultado(self, f"Contornos Activos", res)
+
+        elif tipo == "sift":
+            ruta2 = filedialog.askopenfilename(
+                title="Seleccionar segunda imagen para comparar con SIFT",
+                filetypes=[("Todas las imágenes", "*.png *.jpg *.jpeg *.bmp *.pgm *.ppm *.tif *.tiff"), ("Todos los archivos", "*.*")],
+                parent=self
+            )
+            if not ruta2:
+                return
+
+            try:
+                segunda_imagen = Image.open(ruta2).convert("RGB")
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo cargar la segunda imagen:\n{e}", parent=self)
+                return
+
+            kp1, kp2, coincidencias, res = procesamiento.comparar_con_sift(self.imagen_original, segunda_imagen)
+
+            mensaje = (
+                f"Descriptores Imagen 1: {kp1}\n"
+                f"Descriptores Imagen 2: {kp2}\n"
+                f"Coincidencias encontradas: {coincidencias}"
+            )
+            messagebox.showinfo("Resultados SIFT", mensaje, parent=self)
+            VentanaResultado(self, f"SIFT ({coincidencias} coincidencias)", res)
+        elif tipo == "sift_keypoints":
+            cant_kp, res = procesamiento.visualizar_keypoints_sift(self.imagen_original)
+            messagebox.showinfo("Keypoints SIFT", f"Se detectaron {cant_kp} puntos de interés (keypoints).", parent=self)
+            VentanaResultado(self, f"Keypoints SIFT ({cant_kp} puntos)", res)
         
 
 
@@ -692,3 +725,5 @@ class AppProcesamiento(tk.Tk):
             duration=100,   # milisegundos por cuadro
             loop=0          # 0 = se repite para siempre
         )
+
+   
