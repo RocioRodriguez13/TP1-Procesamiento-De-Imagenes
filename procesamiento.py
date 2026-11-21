@@ -1,6 +1,8 @@
 import math
+import numpy as np
 import random
 from PIL import Image
+import cv2
 from generadores import generador_gaussiano, generador_exponencial
 
 
@@ -1760,3 +1762,83 @@ def seguimiento_objeto(frames, rect_objeto, rect_fondo):
 
 def aplicar_contornos_activos(img_pil, rect_objeto, rect_fondo):
     return seguimiento_objeto([img_pil], rect_objeto, rect_fondo)[0]
+
+
+
+def comparar_con_sift(img_pil1, img_pil2, ratio_test=0.75):
+
+    matriz1, _, _ = convertir_a_gris(img_pil1)
+    gris1 = np.array(matriz1, dtype=np.uint8)
+
+    matriz2, _, _ = convertir_a_gris(img_pil2)
+    gris2 = np.array(matriz2, dtype=np.uint8)
+
+    # Creamos el detector SIFT
+    sift = cv2.SIFT_create()
+
+    # Detectamos keypoints y descriptores de 128 elementos
+    kp1, des1 = sift.detectAndCompute(gris1, None)
+    kp2, des2 = sift.detectAndCompute(gris2, None)
+
+    cant_kp1 = len(kp1) if kp1 is not None else 0
+    cant_kp2 = len(kp2) if kp2 is not None else 0
+
+    # Si alguna imagen no tiene descriptores válidos
+    if des1 is None or des2 is None or len(des1) < 2 or len(des2) < 2:
+        ancho = img_pil1.width + img_pil2.width
+        alto = max(img_pil1.height, img_pil2.height)
+        vacia = Image.new("RGB", (ancho, alto))
+        vacia.paste(img_pil1, (0, 0))
+        vacia.paste(img_pil2, (img_pil1.width, 0))
+        return cant_kp1, cant_kp2, 0, vacia
+
+    # Emparejamiento por distancia euclídea
+    matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
+    matches_knn = matcher.knnMatch(des1, des2, k=2)
+
+    # Filtramos las mejores correspondencias
+    buenos_matches = []
+    for m, n in matches_knn:
+        if m.distance < ratio_test * n.distance:
+            buenos_matches.append(m)
+
+    cant_coincidencias = len(buenos_matches)
+
+    # Preparamos las imágenes en RGB para dibujar las líneas
+    np_img1 = np.array(img_pil1.convert("RGB"))
+    np_img2 = np.array(img_pil2.convert("RGB"))
+
+    # Dibujamos las líneas de unión entre puntos correspondientes
+    img_matches = cv2.drawMatches(
+        np_img1, kp1,
+        np_img2, kp2,
+        buenos_matches, None,
+        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+    )
+    
+    
+
+    return cant_kp1, cant_kp2, cant_coincidencias, Image.fromarray(img_matches)
+
+
+def visualizar_keypoints_sift(img_pil):
+    matriz_gris, _, _ = convertir_a_gris(img_pil)
+    gris = np.array(matriz_gris, dtype=np.uint8)
+
+    sift = cv2.SIFT_create()
+    keypoints, _ = sift.detectAndCompute(gris, None)
+    cant_kp = len(keypoints) if keypoints is not None else 0
+
+    # Imagen a color de fondo
+    img_resultado = np.array(img_pil.convert("RGB"))
+
+    for i, kp in enumerate(keypoints):
+        centro = (int(round(kp.pt[0])), int(round(kp.pt[1])))
+        radio = max(3, int(round(kp.size / 2)))
+
+        # Colores flúor que contrastan con cualquier fondo:
+        color = (255, 0, 0) if (i % 2 == 0) else (0, 0, 255)
+
+        cv2.circle(img_resultado, centro, radio, color, thickness=2)
+
+    return cant_kp, Image.fromarray(img_resultado)
